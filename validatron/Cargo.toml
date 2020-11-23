@@ -1,0 +1,36 @@
+[package]
+name = "validatron"
+version = "1.9.0"
+authors = ["Frankie Foston <frankie.foston@spire.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+thiserror="1.0"
+validatron_derive = { path = "../validatron_derive" }
+serde = {version="1.0", optional=true, features=["derive"]}
+
+[features]
+default = []
+
+use-serde = ["serde"]
+
+[dev-dependencies]
+serde_yaml = "0.8"
+
+
+[[example]]
+name = "enum"
+path = "examples/enum.rs"
+required-features = ["use-serde"]
+
+[[example]]
+name = "struct"
+path = "examples/struct.rs"
+required-features = ["use-serde"]
+
+[[example]]
+name = "big_example"
+path = "examples/big_example.rs"
+required-features = ["use-serde"]
