@@ -12,14 +12,15 @@ env:
 
 jobs:
   test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --all-features
-      - run: cargo check --no-default-features
 
   fmt:
+    name: fmt and clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
