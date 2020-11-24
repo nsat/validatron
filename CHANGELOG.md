@@ -43,3 +43,5 @@ updated throughout the repository.
 
 ### Added
 - Initial release of `Validatron`
+- enums are now supported in their various forms
+- added the `predicate` field attribute validator for functions that return bool

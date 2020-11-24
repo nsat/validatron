@@ -69,6 +69,17 @@ fn get_field_validator(meta: &syn::Meta, target: &TokenStream) -> TokenStream {
                         #custom_func(#target)
                     }
                 }
+                "predicate" => {
+                    let custom_func = lit_to_path(&lit);
+                    let err_msg = format!("Predicate {} failed", quote!(#lit));
+                    quote! {
+                        if #custom_func(#target) {
+                            Ok(())
+                        } else {
+                            Err(::validatron::Error::new(#err_msg))
+                        }
+                    }
+                }
                 "min" => quote! {
                     ::validatron::validators::min(#target, #lit)
                 },

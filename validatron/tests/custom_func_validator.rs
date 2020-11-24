@@ -1,4 +1,4 @@
-use validatron::{Error, Validate};
+use validatron::{Error, Location, Validate};
 
 #[test]
 fn test_custom_field_validator() {
@@ -18,4 +18,28 @@ fn test_custom_field_validator() {
 
     assert!(Foo { a: 72 }.validate().is_ok());
     assert!(Foo { a: 0 }.validate().is_err());
+}
+
+#[test]
+fn uses_existing_function() {
+    #[derive(Validate)]
+    struct Foo(#[validatron(predicate = "Option::is_some")] Option<i32>);
+
+    assert!(Foo(Some(32)).validate().is_ok());
+
+    let x = Foo(None);
+    let e = x.validate().unwrap_err();
+
+    println!("{:#?}", e);
+    assert_eq!(
+        e,
+        Error::Structured(
+            vec![(
+                Location::Index(0),
+                Error::Unstructured(vec!["Predicate \"Option::is_some\" failed".into()])
+            )]
+            .into_iter()
+            .collect()
+        )
+    )
 }
