@@ -68,7 +68,7 @@ where
             let result = v.validate();
 
             if result.is_err() {
-                eb.at_key(k.to_string(), result);
+                eb.at_named(k.to_string(), result);
             }
         }
 
@@ -88,7 +88,7 @@ where
             let result = v.validate();
 
             if result.is_err() {
-                eb.at_key(k.to_string(), result);
+                eb.at_named(k.to_string(), result);
             }
         }
 
@@ -127,7 +127,6 @@ where
 impl<T> Validate for Option<T>
 where
     T: Validate,
-    for<'a> &'a T: Validate,
 {
     fn validate(&self) -> Result<()> {
         validate_seq(self)
