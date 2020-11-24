@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, LinkedList, VecDeque};
 use validatron::{Error, Location, Result, Validate};
 
+#[derive(PartialOrd, Ord, PartialEq, Eq)]
 struct Dummy(bool);
 
 impl Validate for Dummy {
@@ -19,7 +20,7 @@ impl<'a> Validate for &'a Dummy {
 }
 
 #[test]
-fn option_impl() {
+fn option() {
     let a: Option<Dummy> = None;
     assert!(a.validate().is_ok());
 
@@ -34,11 +35,11 @@ fn option_impl() {
 }
 
 #[test]
-fn valid_sequence_test() {
-    let inp: Vec<Dummy> = vec![];
+fn vec() {
+    let mut inp: Vec<Dummy> = vec![];
     assert!(inp.validate().is_ok());
 
-    let mut inp = vec![Dummy(true)];
+    inp = vec![Dummy(true)];
     assert!(inp.validate().is_ok());
 
     inp.push(Dummy(false));
@@ -62,7 +63,63 @@ fn valid_sequence_test() {
 }
 
 #[test]
-fn valid_mapping() {
+fn vecdeque() {
+    let mut inp: VecDeque<Dummy> = VecDeque::new();
+    assert!(inp.validate().is_ok());
+
+    inp.push_back(Dummy(true));
+    assert!(inp.validate().is_ok());
+
+    inp.push_back(Dummy(false));
+    assert!(inp.validate().is_err());
+
+    inp.push_back(Dummy(true));
+    inp.push_back(Dummy(false));
+
+    let e = inp.validate().unwrap_err();
+    match e {
+        Error::Structured(map) => {
+            assert_eq!(map.len(), 2);
+
+            assert_eq!(map.contains_key(&Location::Index(0)), false);
+            assert_eq!(map.contains_key(&Location::Index(1)), true);
+            assert_eq!(map.contains_key(&Location::Index(2)), false);
+            assert_eq!(map.contains_key(&Location::Index(3)), true);
+        }
+        _ => panic!("cannot happen"),
+    }
+}
+
+#[test]
+fn linkedlist() {
+    let mut inp: LinkedList<Dummy> = LinkedList::new();
+    assert!(inp.validate().is_ok());
+
+    inp.push_back(Dummy(true));
+    assert!(inp.validate().is_ok());
+
+    inp.push_back(Dummy(false));
+    assert!(inp.validate().is_err());
+
+    inp.push_back(Dummy(true));
+    inp.push_back(Dummy(false));
+
+    let e = inp.validate().unwrap_err();
+    match e {
+        Error::Structured(map) => {
+            assert_eq!(map.len(), 2);
+
+            assert_eq!(map.contains_key(&Location::Index(0)), false);
+            assert_eq!(map.contains_key(&Location::Index(1)), true);
+            assert_eq!(map.contains_key(&Location::Index(2)), false);
+            assert_eq!(map.contains_key(&Location::Index(3)), true);
+        }
+        _ => panic!("cannot happen"),
+    }
+}
+
+#[test]
+fn hashmap() {
     let mut data = HashMap::new();
 
     assert!(data.validate().is_ok());
@@ -79,6 +136,72 @@ fn valid_mapping() {
         Error::Structured(x) => {
             assert_eq!(x.len(), 1);
             assert!(x.contains_key(&Location::MapKey("a different place".into())));
+        }
+    }
+}
+
+#[test]
+fn btreemap() {
+    let mut data = BTreeMap::new();
+
+    assert!(data.validate().is_ok());
+
+    data.insert("a place", Dummy(true));
+    assert!(data.validate().is_ok());
+
+    data.insert("a different place", Dummy(false));
+    assert!(data.validate().is_err());
+
+    let e = data.validate().unwrap_err();
+    match e {
+        Error::Field(_) => panic!("should happen"),
+        Error::Structured(x) => {
+            assert_eq!(x.len(), 1);
+            assert!(x.contains_key(&Location::MapKey("a different place".into())));
+        }
+    }
+}
+
+#[test]
+fn btreeset() {
+    let mut data = BTreeSet::new();
+    assert!(data.validate().is_ok());
+
+    data.insert(Dummy(true));
+    assert!(data.validate().is_ok());
+
+    data.insert(Dummy(false));
+    assert!(data.validate().is_err());
+
+    let e = data.validate().unwrap_err();
+    println!("{:#?}", e);
+    match e {
+        Error::Field(_) => panic!("should happen"),
+        Error::Structured(x) => {
+            assert_eq!(x.len(), 1);
+            assert!(x.contains_key(&Location::Index(0)));
+        }
+    }
+}
+
+#[test]
+fn binaryheap() {
+    let mut data = BinaryHeap::new();
+    assert!(data.validate().is_ok());
+
+    data.push(Dummy(true));
+    assert!(data.validate().is_ok());
+
+    data.push(Dummy(false));
+    assert!(data.validate().is_err());
+
+    let e = data.validate().unwrap_err();
+    println!("{:#?}", e);
+    match e {
+        Error::Field(_) => panic!("should happen"),
+        Error::Structured(x) => {
+            assert_eq!(x.len(), 1);
+            assert!(x.contains_key(&Location::Index(1)));
         }
     }
 }

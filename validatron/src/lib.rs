@@ -96,14 +96,15 @@ where
     }
 }
 
-impl<T, S> Validate for std::collections::HashSet<T, S>
-where
-    T: Validate,
-{
-    fn validate(&self) -> Result<()> {
-        validate_seq(self)
-    }
-}
+// TODO: decide semantics and re-enable
+// impl<T, S> Validate for std::collections::HashSet<T, S>
+// where
+//     T: Validate,
+// {
+//     fn validate(&self) -> Result<()> {
+//         validate_seq(self)
+//     }
+// }
 
 impl<T> Validate for std::collections::BTreeSet<T>
 where
@@ -130,5 +131,18 @@ where
 {
     fn validate(&self) -> Result<()> {
         validate_seq(self)
+    }
+}
+
+impl<T, E> Validate for std::result::Result<T, E>
+where
+    T: Validate,
+{
+    fn validate(&self) -> Result<()> {
+        if let Ok(value) = self {
+            value.validate()
+        } else {
+            Err(Error::new("value is an Error"))
+        }
     }
 }
