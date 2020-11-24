@@ -1,0 +1,21 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.3.0
+    hooks:
+      - id: no-commit-to-branch
+        args: ["-b", "master"]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: fmt
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.0.0
+    hooks:
+      - id: codespell
+        args:
+          - -S "*.a,*.pyc,*.o,*.d,*.rlib,*.rmeta,*.json,*.z,*.bin,*.gz,*.png,.DS_Store,.coverage,*/target/*,*.git/*,*/.terraform/*,./book/assets,./book/book,./optimizer-py/.hypothesis,./optimizer-py/htmlcov"
+          - --builtin clear,rare
