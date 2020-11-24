@@ -127,7 +127,6 @@ where
 impl<T> Validate for Option<T>
 where
     T: Validate,
-    for<'a> &'a T: Validate,
 {
     fn validate(&self) -> Result<()> {
         validate_seq(self)

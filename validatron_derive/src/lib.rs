@@ -10,41 +10,10 @@ pub fn validatron_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     impl_validatron(&ast).into()
 }
 
-fn inner_expand(function: &syn::Path, arguments: &[TokenStream]) -> TokenStream {
-    quote! {
-        #function(#(#arguments),*)
-    }
-}
-
 fn build_named(name: &str, error: TokenStream) -> TokenStream {
     quote! {
         eb.at_named(#name, #error);
     }
-}
-
-fn gen_custom_struct_validation(function: &syn::Path) -> TokenStream {
-    let field_name = function.get_ident().unwrap().to_string();
-
-    build_named(&field_name, inner_expand(function, &[quote!(&self)]))
-}
-
-fn gen_recurse(field: &syn::Ident) -> TokenStream {
-    let field_name = field.to_string();
-
-    build_named(&field_name, quote!(self.#field.validate()))
-}
-
-// something like #[validatron(required)]
-fn gen_explicit_check(field: &syn::Ident, path: &syn::Path) -> TokenStream {
-    let name = path.get_ident().unwrap().to_string();
-    let func = match name.as_str() {
-        "required" => quote! {
-            ::validatron::validators::is_required(&self.#field)
-        },
-        _ => panic!("Unknown validator '{}'", name),
-    };
-
-    build_named(&field.to_string(), func)
 }
 
 fn lit_to_path(lit: &syn::Lit) -> syn::Path {
@@ -54,8 +23,7 @@ fn lit_to_path(lit: &syn::Lit) -> syn::Path {
     }
 }
 
-// something like #[validatron(min=1)]
-fn gen_argument_check(field: &syn::Ident, mvn: &syn::MetaNameValue) -> TokenStream {
+fn gen_type_check(mvn: &syn::MetaNameValue) -> TokenStream {
     let name = mvn.path.get_ident().unwrap().to_string();
 
     let lit = &mvn.lit;
@@ -63,31 +31,66 @@ fn gen_argument_check(field: &syn::Ident, mvn: &syn::MetaNameValue) -> TokenStre
     let func = match name.as_str() {
         "function" => {
             let custom_func = lit_to_path(&lit);
-            quote! {
-                #custom_func(&self.#field)
-            }
+            build_named(
+                &quote! {#lit}.to_string(),
+                quote! {
+                    #custom_func(&self)
+                },
+            )
         }
-        "min" => quote! {
-            ::validatron::validators::min(&self.#field, #lit)
-        },
-        "max" => quote! {
-            ::validatron::validators::max(&self.#field, #lit)
-        },
-        "equal" => quote! {
-            ::validatron::validators::is_equal(&self.#field, #lit)
-        },
-        "min_len" => quote! {
-            ::validatron::validators::is_min_length(&self.#field, #lit)
-        },
-        "max_len" => quote! {
-            ::validatron::validators::is_max_length(&self.#field, #lit)
-        },
         _ => panic!("Unknown validator '{}'", name),
     };
 
-    build_named(&field.to_string(), func)
+    func
 }
 
+fn get_field_validator(meta: &syn::Meta, field: &TokenStream) -> TokenStream {
+    match meta {
+        syn::Meta::Path(path) => {
+            let name = path.get_ident().unwrap().to_string();
+
+            match name.as_str() {
+                "required" => quote! {
+                    ::validatron::validators::is_required(&self.#field)
+                },
+                _ => panic!("Unknown validator '{}'", name),
+            }
+        }
+        syn::Meta::List(_) => panic!("not currently supported"),
+        syn::Meta::NameValue(mnv) => {
+            let name = mnv.path.get_ident().unwrap().to_string();
+
+            let lit = &mnv.lit;
+
+            match name.as_str() {
+                "function" => {
+                    let custom_func = lit_to_path(&lit);
+                    quote! {
+                        #custom_func(&self.#field)
+                    }
+                }
+                "min" => quote! {
+                    ::validatron::validators::min(&self.#field, #lit)
+                },
+                "max" => quote! {
+                    ::validatron::validators::max(&self.#field, #lit)
+                },
+                "equal" => quote! {
+                    ::validatron::validators::is_equal(&self.#field, #lit)
+                },
+                "min_len" => quote! {
+                    ::validatron::validators::is_min_length(&self.#field, #lit)
+                },
+                "max_len" => quote! {
+                    ::validatron::validators::is_max_length(&self.#field, #lit)
+                },
+                _ => panic!("Unknown validator '{}'", name),
+            }
+        }
+    }
+}
+
+// such as #[validatron(function="validate_my_struct")]
 fn build_type_validator(ast: &syn::DeriveInput) -> Vec<TokenStream> {
     let mut type_validators = vec![];
     for attr in ast.attrs.iter().filter(|x| x.path.is_ident("validatron")) {
@@ -96,14 +99,8 @@ fn build_type_validator(ast: &syn::DeriveInput) -> Vec<TokenStream> {
         if let syn::Meta::List(list) = meta {
             for item in list.nested.iter() {
                 if let syn::NestedMeta::Meta(meta) = item {
-                    // such as #[validatron(function="validate_my_struct")] for a struct
                     if let syn::Meta::NameValue(mnv) = meta {
-                        if mnv.path.is_ident("function") {
-                            type_validators
-                                .push(gen_custom_struct_validation(&lit_to_path(&mnv.lit)));
-                        } else {
-                            panic!("Unsupported param");
-                        }
+                        type_validators.push(gen_type_check(&mnv));
                     }
                 }
             }
@@ -113,47 +110,56 @@ fn build_type_validator(ast: &syn::DeriveInput) -> Vec<TokenStream> {
     type_validators
 }
 
-fn build_field_validators(ds: &syn::DataStruct) -> Vec<TokenStream> {
+fn build_field_validators(fields: &syn::Fields) -> Vec<TokenStream> {
     // we split these out so we that we only recurse after we have completed all other
     // validation tasks for a given struct
     let mut nested_field_validators = vec![];
     let mut custom_field_validators = vec![];
 
-    for field in &ds.fields {
+    for (i, field) in fields.iter().enumerate() {
         // check for and iterate over #[validatron] directives
         for attr in field.attrs.iter().filter(|x| x.path.is_ident("validatron")) {
             let meta = attr.parse_meta().unwrap();
 
-            if let Some(field) = field.ident.as_ref() {
-                match meta {
-                    // #[validatron]
-                    syn::Meta::Path(_) => {
-                        nested_field_validators.push(gen_recurse(field));
+            let ident = field
+                .ident
+                .as_ref()
+                .map(|name| quote! {#name})
+                .unwrap_or_else(|| {
+                    let i = syn::Index::from(i);
+                    quote! {#i}
+                });
+
+            let push = |func: TokenStream| {
+                if let Some(name) = &field.ident {
+                    let name = name.to_string();
+                    quote! {
+                        eb.at_named(#name, #func);
                     }
-                    // #[validatron(...)]
-                    syn::Meta::List(list) => {
-                        for item in list.nested.iter() {
-                            if let syn::NestedMeta::Meta(meta) = item {
-                                match meta {
-                                    // such as #[validatron(required)]
-                                    syn::Meta::Path(p) => {
-                                        custom_field_validators
-                                            .push(gen_explicit_check(&field, &p));
-                                    }
-                                    // such as #[validatron(min=1)]
-                                    syn::Meta::NameValue(mnv) => {
-                                        custom_field_validators
-                                            .push(gen_argument_check(&field, &mnv));
-                                    }
-                                    _ => (),
-                                }
-                            }
+                } else {
+                    quote! {
+                        eb.at_index(#i, #func);
+                    }
+                }
+            };
+
+            match meta {
+                // #[validatron]
+                syn::Meta::Path(_) => {
+                    let f = quote! { self.#ident.validate() };
+                    nested_field_validators.push(push(f))
+                }
+                // #[validatron(...)]
+                syn::Meta::List(list) => {
+                    for item in list.nested.iter() {
+                        if let syn::NestedMeta::Meta(meta) = item {
+                            let validator = get_field_validator(&meta, &ident);
+
+                            custom_field_validators.push(push(validator))
                         }
                     }
-                    _ => (),
                 }
-            } else {
-                println!("Doesn't current support anonymous fields")
+                _ => panic!("argument not supported"),
             }
         }
     }
@@ -215,12 +221,6 @@ fn build_enum_variant_validator(de: &syn::DataEnum) -> Vec<TokenStream> {
     let mut tokens = Vec::new();
 
     for var in &de.variants {
-        if let syn::Fields::Unit = var.fields {
-            // Skipping unit type as there is nothing to validate
-
-            continue;
-        }
-
         for attr in var.attrs.iter().filter(|x| x.path.is_ident("validatron")) {
             let meta = attr.parse_meta().unwrap();
 
@@ -275,36 +275,32 @@ fn build_enum_variant_validator(de: &syn::DataEnum) -> Vec<TokenStream> {
 fn impl_validatron(ast: &syn::DeriveInput) -> TokenStream {
     let type_validators = build_type_validator(&ast);
 
-    let field_validators = if let syn::Data::Struct(ds) = &ast.data {
-        build_field_validators(&ds)
-    } else {
-        vec![]
-    };
-
-    let variant_validators = if let syn::Data::Enum(de) = &ast.data {
-        build_enum_variant_validator(&de)
-    } else {
-        vec![]
+    let validators = match &ast.data {
+        syn::Data::Struct(ds) => build_field_validators(&ds.fields),
+        syn::Data::Enum(de) => build_enum_variant_validator(&de),
+        syn::Data::Union(_) => panic!("Union types are not supported"),
     };
 
     let derive_target = &ast.ident;
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
 
     let expanded = quote! {
-        impl #impl_generics ::validatron::Validate for #derive_target #ty_generics #where_clause {
-            fn validate(&self) -> ::validatron::Result<()> {
-                use ::validatron::{Location, Error, ErrorBuilder};
-                let mut eb = ErrorBuilder::new();
+        const _: () = {
+            extern crate validatron;
 
-                #(#field_validators)*
+            impl #impl_generics ::validatron::Validate for #derive_target #ty_generics #where_clause {
+                fn validate(&self) -> ::validatron::Result<()> {
+                    use ::validatron::{Location, Error, ErrorBuilder};
+                    let mut eb = ErrorBuilder::new();
 
-                #(#variant_validators)*
+                    #(#validators)*
 
-                #(#type_validators)*
+                    #(#type_validators)*
 
-                eb.build()
+                    eb.build()
+                }
             }
-        }
+        };
     };
 
     expanded
