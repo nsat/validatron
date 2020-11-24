@@ -1,4 +1,4 @@
-use validatron::{Validate};
+use validatron::Validate;
 
 #[derive(Debug, Validate)]
 struct MyStruct {
