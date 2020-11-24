@@ -1,6 +1,16 @@
 use crate::{Error, ErrorBuilder, Result};
 use std::fmt::Display;
 
+/// Check that an option has a value
+///
+/// ```
+/// # use validatron::validators::is_required;
+/// let x = Some(42);
+/// assert!(is_required(&x).is_ok());
+///
+/// let y = None;
+/// assert!(is_required::<i64>(&y).is_err());
+/// ```
 pub fn is_required<T>(value: &Option<T>) -> Result<()> {
     let mut eb = ErrorBuilder::new();
 
@@ -11,6 +21,14 @@ pub fn is_required<T>(value: &Option<T>) -> Result<()> {
     eb.build()
 }
 
+/// Check that values are equal
+///
+/// ```
+/// # use validatron::validators::is_equal;
+/// assert!(is_equal(&42, 42).is_ok());
+/// assert!(is_equal(&String::from("hello world"), "hello world").is_ok());
+/// assert!(is_equal(&1.0, 2.0).is_err());
+/// ```
 pub fn is_equal<L, R>(value: &L, other: R) -> Result<()>
 where
     L: PartialEq<R> + Display,
@@ -23,6 +41,13 @@ where
     }
 }
 
+/// Check that a value is greater than a value
+///
+/// ```
+/// # use validatron::validators::min;
+/// assert!(min(&42, 0).is_ok());
+/// assert!(min(&1.0, 2.0).is_err());
+/// ```
 pub fn min<L, R>(value: &L, min: R) -> Result<()>
 where
     L: PartialOrd<R> + Display,
@@ -35,6 +60,13 @@ where
     }
 }
 
+/// Check that a value is less than a max
+///
+/// ```
+/// # use validatron::validators::max;
+/// assert!(max(&42, 128).is_ok());
+/// assert!(max(&2.0, 1.0).is_err());
+/// ```
 pub fn max<L, R>(value: &L, max: R) -> Result<()>
 where
     L: PartialOrd<R> + Display,
@@ -54,6 +86,15 @@ where
     iterable.into_iter().count()
 }
 
+/// Check that a sequence is at least a certain length
+///
+/// ```
+/// # use validatron::validators::is_min_length;
+/// let x = vec![1,2,3,4,5];
+/// assert!(is_min_length(&x, 0).is_ok());
+/// assert!(is_min_length(&x, 2).is_ok());
+/// assert!(is_min_length(&x, 6).is_err());
+/// ```
 pub fn is_min_length<C>(iterable: C, min_length: usize) -> Result<()>
 where
     C: IntoIterator,
@@ -72,6 +113,15 @@ where
     eb.build()
 }
 
+/// Check that a sequence is at most a certain length
+///
+/// ```
+/// # use validatron::validators::is_max_length;
+/// let x = vec![1,2,3,4,5];
+/// assert!(is_max_length(&x, 10).is_ok());
+/// assert!(is_max_length(&x, 5).is_ok());
+/// assert!(is_max_length(&x, 2).is_err());
+/// ```
 pub fn is_max_length<C>(iterable: C, max_length: usize) -> Result<()>
 where
     C: IntoIterator,

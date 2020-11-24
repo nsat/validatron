@@ -12,7 +12,7 @@ validatron_derive = { path = "../validatron_derive" }
 serde = {version="1.0", optional=true, features=["derive"]}
 
 [features]
-default = []
+default = ["use-serde"]
 
 use-serde = ["serde"]
 

@@ -18,4 +18,5 @@ repos:
       - id: codespell
         args:
           - -S "*.a,*.pyc,*.o,*.d,*.rlib,*.rmeta,*.json,*.z,*.bin,*.gz,*.png,.DS_Store,.coverage,*/target/*,*.git/*,*/.terraform/*,./book/assets,./book/book,./optimizer-py/.hypothesis,./optimizer-py/htmlcov"
+          - -L crate
           - --builtin clear,rare
