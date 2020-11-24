@@ -205,3 +205,15 @@ fn binaryheap() {
         }
     }
 }
+
+#[test]
+fn result() {
+    let data = std::result::Result::<Dummy, ()>::Err(());
+    assert!(data.validate().is_err());
+
+    let data = std::result::Result::<Dummy, ()>::Ok(Dummy(false));
+    assert!(data.validate().is_err());
+
+    let data = std::result::Result::<Dummy, ()>::Ok(Dummy(true));
+    assert!(data.validate().is_ok());
+}
