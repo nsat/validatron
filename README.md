@@ -11,7 +11,7 @@ It is heavily inspired by the [keats/validator][1] crate but with a few orthogon
 ## A quick example
 
 ```rust
-use validatron::{Validate};
+use validatron::Validate;
 
 #[derive(Debug, Validate)]
 struct MyStruct {
