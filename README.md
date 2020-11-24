@@ -1,14 +1,24 @@
-# Validatron
-
-Validatron is a data structure validation library for rust that is designed for performing extensive
-integrity checks on user supplied data prior.
-
-It is heavily inspired by the [keats/validator][1] crate but with a few orthogonal design choices. These are primarily:
-
-- Do not fail fast, return as many error as possible
+# Validatron [![Build Status]][actions] [![Latest Version]][crates.io]
 
 
-## A quick example
+[Build Status]: https://img.shields.io/github/workflow/status/serde-rs/serde/CI/master
+[actions]: https://github.com/serde-rs/serde/actions?query=branch%3Amaster
+[Latest Version]: https://img.shields.io/crates/v/validatron.svg
+[crates.io]: https://crates.io/crates/validatron
+
+
+**Validatron is a data structure validation library for rust that is designed for performing extensive
+integrity checks on user supplied data prior to use.**
+
+It is heavily inspired by the [keats/validator][1] crate but with a different design choices:
+
+- do not fail fast, return as many error as possible
+- return a serializable error type
+- easily extendable validators
+
+## Examples
+
+Checkout the [examples](/validatron/examples) directory for additional examples.
 
 ```rust
 use validatron::Validate;
