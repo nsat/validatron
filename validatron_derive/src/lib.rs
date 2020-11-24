@@ -44,14 +44,14 @@ fn gen_type_check(mvn: &syn::MetaNameValue) -> TokenStream {
     func
 }
 
-fn get_field_validator(meta: &syn::Meta, field: &TokenStream) -> TokenStream {
+fn get_field_validator(meta: &syn::Meta, target: &TokenStream) -> TokenStream {
     match meta {
         syn::Meta::Path(path) => {
             let name = path.get_ident().unwrap().to_string();
 
             match name.as_str() {
                 "required" => quote! {
-                    ::validatron::validators::is_required(&self.#field)
+                    ::validatron::validators::is_required(#target)
                 },
                 _ => panic!("Unknown validator '{}'", name),
             }
@@ -66,23 +66,23 @@ fn get_field_validator(meta: &syn::Meta, field: &TokenStream) -> TokenStream {
                 "function" => {
                     let custom_func = lit_to_path(&lit);
                     quote! {
-                        #custom_func(&self.#field)
+                        #custom_func(#target)
                     }
                 }
                 "min" => quote! {
-                    ::validatron::validators::min(&self.#field, #lit)
+                    ::validatron::validators::min(#target, #lit)
                 },
                 "max" => quote! {
-                    ::validatron::validators::max(&self.#field, #lit)
+                    ::validatron::validators::max(#target, #lit)
                 },
                 "equal" => quote! {
-                    ::validatron::validators::is_equal(&self.#field, #lit)
+                    ::validatron::validators::is_equal(#target, #lit)
                 },
                 "min_len" => quote! {
-                    ::validatron::validators::is_min_length(&self.#field, #lit)
+                    ::validatron::validators::is_min_length(#target, #lit)
                 },
                 "max_len" => quote! {
-                    ::validatron::validators::is_max_length(&self.#field, #lit)
+                    ::validatron::validators::is_max_length(#target, #lit)
                 },
                 _ => panic!("Unknown validator '{}'", name),
             }
@@ -110,7 +110,11 @@ fn build_type_validator(ast: &syn::DeriveInput) -> Vec<TokenStream> {
     type_validators
 }
 
-fn build_field_validators(fields: &syn::Fields) -> Vec<TokenStream> {
+fn build_field_validators(
+    fields: &syn::Fields,
+    target_prefix: Option<TokenStream>,
+    borrow_fields: bool,
+) -> Vec<TokenStream> {
     // we split these out so we that we only recurse after we have completed all other
     // validation tasks for a given struct
     let mut nested_field_validators = vec![];
@@ -121,13 +125,25 @@ fn build_field_validators(fields: &syn::Fields) -> Vec<TokenStream> {
         for attr in field.attrs.iter().filter(|x| x.path.is_ident("validatron")) {
             let meta = attr.parse_meta().unwrap();
 
-            let ident = field
+            let target = field
                 .ident
                 .as_ref()
-                .map(|name| quote! {#name})
+                .map(|name| {
+                    quote! {
+                        #target_prefix#name
+                    }
+                })
                 .unwrap_or_else(|| {
-                    let i = syn::Index::from(i);
-                    quote! {#i}
+                    if target_prefix.is_some() {
+                        let i = syn::Index::from(i);
+                        quote! {#target_prefix#i}
+                    } else {
+                        let arg_name = syn::Ident::new(
+                            &format!("_field{}", i),
+                            proc_macro2::Span::call_site(),
+                        );
+                        quote!(#arg_name)
+                    }
                 });
 
             let push = |func: TokenStream| {
@@ -146,14 +162,18 @@ fn build_field_validators(fields: &syn::Fields) -> Vec<TokenStream> {
             match meta {
                 // #[validatron]
                 syn::Meta::Path(_) => {
-                    let f = quote! { self.#ident.validate() };
+                    let f = quote! { #target.validate() };
                     nested_field_validators.push(push(f))
                 }
                 // #[validatron(...)]
                 syn::Meta::List(list) => {
                     for item in list.nested.iter() {
                         if let syn::NestedMeta::Meta(meta) = item {
-                            let validator = get_field_validator(&meta, &ident);
+                            let validator = if borrow_fields {
+                                get_field_validator(&meta, &quote!(&#target))
+                            } else {
+                                get_field_validator(&meta, &target)
+                            };
 
                             custom_field_validators.push(push(validator))
                         }
@@ -169,7 +189,7 @@ fn build_field_validators(fields: &syn::Fields) -> Vec<TokenStream> {
     custom_field_validators
 }
 
-fn iflet_members(fields: &syn::Fields) -> Vec<TokenStream> {
+fn destructure_variant_bindings(fields: &syn::Fields) -> TokenStream {
     let mut tokens = Vec::new();
 
     match fields {
@@ -183,101 +203,58 @@ fn iflet_members(fields: &syn::Fields) -> Vec<TokenStream> {
         }
         syn::Fields::Unnamed(fields) => {
             for (i, _field) in fields.unnamed.iter().enumerate() {
-                let arg_name = syn::Ident::new(&format!("_{}", i), proc_macro2::Span::call_site());
+                let arg_name =
+                    syn::Ident::new(&format!("_field{}", i), proc_macro2::Span::call_site());
                 tokens.push(quote! {
                     #arg_name
                 });
             }
         }
-        syn::Fields::Unit => unreachable!(),
+        syn::Fields::Unit => {}
     }
 
-    tokens
-}
-
-fn escape_iflet_members(fields: &syn::Fields, tokens: &[TokenStream]) -> TokenStream {
     match fields {
         syn::Fields::Named(_) => quote! {
-            {#(#tokens),*}
+            {#(ref #tokens),*}
         },
         syn::Fields::Unnamed(_) => quote! {
-            (#(#tokens),*)
+            (#(ref #tokens),*)
         },
-        syn::Fields::Unit => unreachable!(),
+        syn::Fields::Unit => quote! {},
     }
 }
 
-fn validate_variant_members(tokens: &[TokenStream]) -> Vec<TokenStream> {
-    tokens
-        .iter()
-        .map(|x| {
-            let variant_loc = x.to_string();
-            quote! { eb.at_named(#variant_loc, #x.validate()); }
-        })
-        .collect()
-}
-
-fn build_enum_variant_validator(de: &syn::DataEnum) -> Vec<TokenStream> {
+fn build_enum_variant_validator(de: &syn::DataEnum) -> TokenStream {
     let mut tokens = Vec::new();
 
     for var in &de.variants {
-        for attr in var.attrs.iter().filter(|x| x.path.is_ident("validatron")) {
-            let meta = attr.parse_meta().unwrap();
+        let ident = &var.ident;
 
-            let variant = var.ident.clone();
+        let escaped = destructure_variant_bindings(&var.fields);
 
-            let fields = iflet_members(&var.fields);
-            let escaped = escape_iflet_members(&var.fields, &fields);
+        let field_tokens = build_field_validators(&var.fields, None, false);
 
-            match meta {
-                // #[validatron]
-                syn::Meta::Path(_) => {
-                    let validators = validate_variant_members(&fields);
-                    tokens.push(quote! {
-                        if let Self::#variant#escaped = &self {
-                            #(#validators)*
-                        }
-                    });
-                }
-                // #[validatron(...)]
-                // currently only "function" is supported
-                syn::Meta::List(list) => {
-                    for item in list.nested {
-                        if let syn::NestedMeta::Meta(meta) = item {
-                            // such as #[validatron(min=1)]
-                            if let syn::Meta::NameValue(mnv) = meta {
-                                if mnv.path.get_ident().unwrap() == "function" {
-                                    let path = lit_to_path(&mnv.lit);
-
-                                    let var_name = variant.to_string();
-
-                                    tokens.push(quote! {
-                                        if let Self::#variant#escaped = &self {
-                                            eb.at_named(
-                                                #var_name,
-                                                #path(#(&#fields),*)
-                                            );
-                                        }
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-                _ => (),
-            }
-        }
+        tokens.push(quote! {
+            Self::#ident #escaped => {
+                #(#field_tokens)*
+            },
+        });
     }
 
-    tokens
+    quote! {
+        match self {
+            #(#tokens)*
+            _ => {}
+        };
+    }
 }
 
 fn impl_validatron(ast: &syn::DeriveInput) -> TokenStream {
     let type_validators = build_type_validator(&ast);
 
     let validators = match &ast.data {
-        syn::Data::Struct(ds) => build_field_validators(&ds.fields),
-        syn::Data::Enum(de) => build_enum_variant_validator(&de),
+        syn::Data::Struct(ds) => build_field_validators(&ds.fields, Some(quote!(self.)), true),
+        syn::Data::Enum(de) => vec![build_enum_variant_validator(&de)],
         syn::Data::Union(_) => panic!("Union types are not supported"),
     };
 
@@ -290,8 +267,7 @@ fn impl_validatron(ast: &syn::DeriveInput) -> TokenStream {
 
             impl #impl_generics ::validatron::Validate for #derive_target #ty_generics #where_clause {
                 fn validate(&self) -> ::validatron::Result<()> {
-                    use ::validatron::{Location, Error, ErrorBuilder};
-                    let mut eb = ErrorBuilder::new();
+                    let mut eb = ::validatron::ErrorBuilder::new();
 
                     #(#validators)*
 
