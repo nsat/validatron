@@ -1,4 +1,4 @@
-use validatron::{Error, Validate};
+use validatron::{Error, Location, Validate};
 
 #[test]
 fn test_custom_field_validator() {
@@ -31,5 +31,15 @@ fn uses_existing_function() {
     let e = x.validate().unwrap_err();
 
     println!("{:#?}", e);
-    assert!(false);
+    assert_eq!(
+        e,
+        Error::Structured(
+            vec![(
+                Location::Index(0),
+                Error::Unstructured(vec!["Predicate \"Option::is_some\" failed".into()])
+            )]
+            .into_iter()
+            .collect()
+        )
+    )
 }
