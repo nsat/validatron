@@ -3,18 +3,11 @@
 extern crate proc_macro;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::parse_quote;
 
 #[proc_macro_derive(Validate, attributes(validatron))]
 pub fn validatron_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse(input).unwrap();
     impl_validatron(&ast).into()
-}
-
-fn into_results(location: TokenStream, error: TokenStream) -> TokenStream {
-    quote! {
-        eb.at_location(#location, #error);
-    }
 }
 
 fn inner_expand(function: &syn::Path, arguments: &[TokenStream]) -> TokenStream {
@@ -23,55 +16,35 @@ fn inner_expand(function: &syn::Path, arguments: &[TokenStream]) -> TokenStream 
     }
 }
 
-fn gen_inbuilt_validator(
-    field: &syn::Ident,
-    validator: &syn::Path,
-    argument: &syn::Lit,
-) -> TokenStream {
-    let field_name = field.to_string();
-
-    into_results(
-        quote!(::validatron::Location::NamedField(#field_name)),
-        inner_expand(&validator, &[quote!(&self.#field), quote!(#argument)]),
-    )
-}
-
-fn gen_custom_function(field: &syn::Ident, function: &syn::Path) -> TokenStream {
-    let field_name = field.to_string();
-
-    into_results(
-        quote!(::validatron::Location::NamedField(#field_name)),
-        inner_expand(function, &[quote!(&self.#field)]),
-    )
+fn build_named(name: &str, error: TokenStream) -> TokenStream {
+    quote! {
+        eb.at_named(#name, #error);
+    }
 }
 
 fn gen_custom_struct_validation(function: &syn::Path) -> TokenStream {
-    let fname = function.get_ident().unwrap().to_string();
+    let field_name = function.get_ident().unwrap().to_string();
 
-    into_results(
-        quote!(::validatron::Location::NamedField(#fname)),
-        inner_expand(function, &[quote!(&self)]),
-    )
+    build_named(&field_name, inner_expand(function, &[quote!(&self)]))
 }
 
 fn gen_recurse(field: &syn::Ident) -> TokenStream {
     let field_name = field.to_string();
 
-    into_results(
-        quote!(::validatron::Location::NamedField(#field_name)),
-        quote!(self.#field.validate()),
-    )
+    build_named(&field_name, quote!(self.#field.validate()))
 }
 
 // something like #[validatron(required)]
 fn gen_explicit_check(field: &syn::Ident, path: &syn::Path) -> TokenStream {
     let name = path.get_ident().unwrap().to_string();
-    match name.as_str() {
-        "required" => {
-            gen_custom_function(field, &parse_quote!(::validatron::validators::is_required))
-        }
+    let func = match name.as_str() {
+        "required" => quote! {
+            ::validatron::validators::is_required(&self.#field)
+        },
         _ => panic!("Unknown validator '{}'", name),
-    }
+    };
+
+    build_named(&field.to_string(), func)
 }
 
 fn lit_to_path(lit: &syn::Lit) -> syn::Path {
@@ -85,35 +58,34 @@ fn lit_to_path(lit: &syn::Lit) -> syn::Path {
 fn gen_argument_check(field: &syn::Ident, mvn: &syn::MetaNameValue) -> TokenStream {
     let name = mvn.path.get_ident().unwrap().to_string();
 
-    match name.as_str() {
-        "function" => gen_custom_function(&field, &lit_to_path(&mvn.lit)),
-        "min" => gen_inbuilt_validator(
-            &field,
-            &parse_quote!(::validatron::validators::min),
-            &mvn.lit,
-        ),
-        "max" => gen_inbuilt_validator(
-            &field,
-            &parse_quote!(::validatron::validators::max),
-            &mvn.lit,
-        ),
-        "equal" => gen_inbuilt_validator(
-            &field,
-            &parse_quote!(::validatron::validators::is_equal),
-            &mvn.lit,
-        ),
-        "min_len" => gen_inbuilt_validator(
-            &field,
-            &parse_quote!(::validatron::validators::is_min_length),
-            &mvn.lit,
-        ),
-        "max_len" => gen_inbuilt_validator(
-            &field,
-            &parse_quote!(::validatron::validators::is_max_length),
-            &mvn.lit,
-        ),
+    let lit = &mvn.lit;
+
+    let func = match name.as_str() {
+        "function" => {
+            let custom_func = lit_to_path(&lit);
+            quote! {
+                #custom_func(&self.#field)
+            }
+        }
+        "min" => quote! {
+            ::validatron::validators::min(&self.#field, #lit)
+        },
+        "max" => quote! {
+            ::validatron::validators::max(&self.#field, #lit)
+        },
+        "equal" => quote! {
+            ::validatron::validators::is_equal(&self.#field, #lit)
+        },
+        "min_len" => quote! {
+            ::validatron::validators::is_min_length(&self.#field, #lit)
+        },
+        "max_len" => quote! {
+            ::validatron::validators::is_max_length(&self.#field, #lit)
+        },
         _ => panic!("Unknown validator '{}'", name),
-    }
+    };
+
+    build_named(&field.to_string(), func)
 }
 
 fn build_type_validator(ast: &syn::DeriveInput) -> Vec<TokenStream> {
@@ -234,7 +206,7 @@ fn validate_variant_members(tokens: &[TokenStream]) -> Vec<TokenStream> {
         .iter()
         .map(|x| {
             let variant_loc = x.to_string();
-            quote! { eb.at_field(#variant_loc, #x.validate()); }
+            quote! { eb.at_named(#variant_loc, #x.validate()); }
         })
         .collect()
 }
@@ -281,7 +253,7 @@ fn build_enum_variant_validator(de: &syn::DataEnum) -> Vec<TokenStream> {
 
                                     tokens.push(quote! {
                                         if let Self::#variant#escaped = &self {
-                                            eb.at_key(
+                                            eb.at_named(
                                                 #var_name,
                                                 #path(#(&#fields),*)
                                             );

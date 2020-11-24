@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -6,35 +7,49 @@ use crate::Result;
 #[cfg(feature = "use-serde")]
 use serde::Serialize;
 
+/// The location within a data structure in which a validation error could
+/// occur. Similar to serde we only support json style data structures with
+/// either numerically indexed or keyed locations.
 #[derive(Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "use-serde", derive(Serialize), serde(untagged))]
 pub enum Location {
-    NamedField(&'static str),
-    MapKey(String),
+    // todo: can this be <'a>?
+    Named(Cow<'static, str>),
     Index(usize),
 }
 
+/// todo: use a none-str type as the reason type?
 #[derive(Error, Debug, PartialEq)]
 #[cfg_attr(feature = "use-serde", derive(Serialize), serde(untagged))]
 pub enum Error {
+    /// A flat, unstructured list of failure reasons
     #[error("{0:#?}")]
-    Field(Vec<String>),
+    Unstructured(Vec<Cow<'static, str>>),
+
+    /// A structured, potentially nested set of failure reasons
+    ///
+    /// a vector or a nested map can attribute errors to the correct locations
     #[error("{0:#?}")]
     Structured(HashMap<Location, Error>),
 }
 
 impl Error {
-    pub fn new<S: Into<String>>(message: S) -> Self {
-        Self::Field(vec![message.into()])
+    pub fn new<S>(message: S) -> Self
+    where
+        S: Into<Cow<'static, str>>,
+    {
+        Self::Unstructured(vec![message.into()])
     }
 
     pub fn merge(&mut self, other: Error) {
         // Multi + Multi -> Multi
         // Located + Located -> Located
 
+        // todo: simplify once https://github.com/rust-lang/rust/issues/68354
+        // is stabilised
         match self {
-            Error::Field(x) => match other {
-                Error::Field(y) => x.extend(y.into_iter()),
+            Error::Unstructured(x) => match other {
+                Error::Unstructured(y) => x.extend(y.into_iter()),
                 _ => panic!("can only merge duplicate variants"),
             },
             Error::Structured(x) => match other {
@@ -62,7 +77,7 @@ fn build_structured(errs: &mut Option<Error>, loc: Location, result: Result<()>)
         let mut structured_errs = errs
             .take()
             .map(|e| match e {
-                Error::Field(_) => panic!("should never happen"),
+                Error::Unstructured(_) => panic!("should never happen"),
                 Error::Structured(hm) => hm,
             })
             .unwrap_or_else(HashMap::new);
@@ -104,11 +119,11 @@ impl ErrorBuilder {
         }
     }
 
-    pub fn because(&mut self, message: impl Into<String>) -> &mut Self {
+    pub fn because(&mut self, message: impl Into<Cow<'static, str>>) -> &mut Self {
         if let Some(e) = &mut self.errors {
-            e.merge(Error::Field(vec![message.into()]))
+            e.merge(Error::Unstructured(vec![message.into()]))
         } else {
-            self.errors = Some(Error::Field(vec![message.into()]))
+            self.errors = Some(Error::Unstructured(vec![message.into()]))
         }
 
         self
@@ -120,22 +135,16 @@ impl ErrorBuilder {
         self
     }
 
-    pub fn at_field(&mut self, field: &'static str, result: Result<()>) -> &mut Self {
-        build_structured(&mut self.errors, Location::NamedField(field), result);
-
-        self
+    pub fn at_named(
+        &mut self,
+        name: impl Into<Cow<'static, str>>,
+        result: Result<()>,
+    ) -> &mut Self {
+        self.at_location(Location::Named(name.into()), result)
     }
 
     pub fn at_index(&mut self, index: usize, result: Result<()>) -> &mut Self {
-        build_structured(&mut self.errors, Location::Index(index), result);
-
-        self
-    }
-
-    pub fn at_key(&mut self, key: impl Into<String>, result: Result<()>) -> &mut Self {
-        build_structured(&mut self.errors, Location::MapKey(key.into()), result);
-
-        self
+        self.at_location(Location::Index(index), result)
     }
 }
 
@@ -193,14 +202,14 @@ mod tests {
             let mut eb = ErrorBuilder::new();
 
             if x.contains_key("Foo") {
-                eb.at_key(
+                eb.at_named(
                     "Foo",
                     Err(Error::new("must not contain a key with this name")),
                 );
             }
 
             for (k, v) in x {
-                eb.at_key(k, v.validate());
+                eb.at_named(k.to_string(), v.validate());
             }
 
             eb.build()
@@ -208,9 +217,9 @@ mod tests {
 
         fn validate_foo(x: &Foo) -> Result<()> {
             ErrorBuilder::new()
-                .at_field("a", crate::validators::min(&x.a, 5))
-                .at_field("b", validate_a_vector(&x.b))
-                .at_field("c", validate_a_map(&x.c))
+                .at_named("a", crate::validators::min(&x.a, 5))
+                .at_named("b", validate_a_vector(&x.b))
+                .at_named("c", validate_a_map(&x.c))
                 .build()
         }
 
@@ -242,7 +251,7 @@ mod tests {
         a.merge(b);
 
         match a {
-            Error::Field(x) => {
+            Error::Unstructured(x) => {
                 assert_eq!(x, vec!["a", "b"]);
             }
             Error::Structured(_) => panic!("should not happen"),
@@ -254,7 +263,7 @@ mod tests {
         a.merge(b);
 
         match a {
-            Error::Field(x) => {
+            Error::Unstructured(x) => {
                 assert_eq!(x, vec!["a", "b"]);
             }
             Error::Structured(_) => panic!("should not happen"),

@@ -132,10 +132,10 @@ fn hashmap() {
 
     let e = data.validate().unwrap_err();
     match e {
-        Error::Field(_) => panic!("should happen"),
+        Error::Unstructured(_) => panic!("should happen"),
         Error::Structured(x) => {
             assert_eq!(x.len(), 1);
-            assert!(x.contains_key(&Location::MapKey("a different place".into())));
+            assert!(x.contains_key(&Location::Named("a different place".into())));
         }
     }
 }
@@ -154,10 +154,10 @@ fn btreemap() {
 
     let e = data.validate().unwrap_err();
     match e {
-        Error::Field(_) => panic!("should happen"),
+        Error::Unstructured(_) => panic!("should happen"),
         Error::Structured(x) => {
             assert_eq!(x.len(), 1);
-            assert!(x.contains_key(&Location::MapKey("a different place".into())));
+            assert!(x.contains_key(&Location::Named("a different place".into())));
         }
     }
 }
@@ -176,7 +176,7 @@ fn btreeset() {
     let e = data.validate().unwrap_err();
     println!("{:#?}", e);
     match e {
-        Error::Field(_) => panic!("should happen"),
+        Error::Unstructured(_) => panic!("should happen"),
         Error::Structured(x) => {
             assert_eq!(x.len(), 1);
             assert!(x.contains_key(&Location::Index(0)));
@@ -198,7 +198,7 @@ fn binaryheap() {
     let e = data.validate().unwrap_err();
     println!("{:#?}", e);
     match e {
-        Error::Field(_) => panic!("should happen"),
+        Error::Unstructured(_) => panic!("should happen"),
         Error::Structured(x) => {
             assert_eq!(x.len(), 1);
             assert!(x.contains_key(&Location::Index(1)));
