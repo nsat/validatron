@@ -242,7 +242,7 @@ mod tests {
             }
         }
 
-        fn validate_a_vector(x: &Vec<i64>) -> Result<()> {
+        fn validate_a_vector(x: &[i64]) -> Result<()> {
             let mut eb = ErrorBuilder::new();
 
             for (i, v) in x.iter().enumerate() {
@@ -273,15 +273,15 @@ mod tests {
             eb.build()
         }
 
-        fn validate_foo(foo: &Foo) -> Result<()> {
+        fn validate_foo(x: &Foo) -> Result<()> {
             ErrorBuilder::new()
-                .at_field("a", super::validators::min(&foo.a, 5))
-                .at_field("b", validate_a_vector(&foo.b))
-                .at_field("c", validate_a_map(&foo.c))
+                .at_field("a", super::validators::min(&x.a, 5))
+                .at_field("b", validate_a_vector(&x.b))
+                .at_field("c", validate_a_map(&x.c))
                 .build()
         }
 
-        let foo = Foo {
+        let value = Foo {
             a: 10,
             b: vec![-1, 0, 1, 2],
             c: vec![
@@ -292,9 +292,7 @@ mod tests {
             .collect(),
         };
 
-        let e = validate_foo(&foo).unwrap_err();
-        println!("{}", &e);
-        // assert!(false);
+        assert!(validate_foo(&value).is_err());
     }
 
     #[test]
