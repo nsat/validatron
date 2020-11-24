@@ -58,7 +58,7 @@ where
 
 impl<K, V, S> Validate for std::collections::HashMap<K, V, S>
 where
-    K: ToString,
+    K: std::fmt::Display,
     V: Validate,
 {
     fn validate(&self) -> Result<()> {
@@ -78,7 +78,7 @@ where
 
 impl<K, V> Validate for std::collections::BTreeMap<K, V>
 where
-    K: ToString,
+    K: std::fmt::Display,
     V: Validate,
 {
     fn validate(&self) -> Result<()> {
