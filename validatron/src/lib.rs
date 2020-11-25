@@ -1,10 +1,37 @@
+//! A data structure validation library
+//!
+//! ```
+//! use validatron::Validate;
+//!
+//! #[derive(Debug, Validate)]
+//! struct MyStruct {
+//!     #[validatron(min = 42)]
+//!     a: i64,
+//!     #[validatron(equal = "hello world!")]
+//!     b: String,
+//! }
+//!
+//! let x = MyStruct {
+//!     a: 36,
+//!     b: "hello world!".into()
+//! };
+//!
+//! x.validate().is_err();
+//! ```
+
+/// An [`Error`](trait@std::error::Error) type for representing validation failures
 pub mod error;
+
+/// pre-rolled validators for data structures
 pub mod validators;
 
 // re-export derive macro
-pub use error::{Error, ErrorBuilder, Location};
+pub use error::{Error, Location};
+
+/// A derive macro for validating data structures
 pub use validatron_derive::Validate;
 
+/// A convenience type for Results using the [`Error`] error type.
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// The core Validatron trait, types that implement this trait can
@@ -12,6 +39,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 ///
 /// Implementors should recursively validate internal structures.
 pub trait Validate {
+    /// Validate the implemented type exhaustively, returning all errors.
     fn validate(&self) -> Result<()>;
 }
 
@@ -20,7 +48,7 @@ where
     I: IntoIterator<Item = &'a T>,
     T: Validate,
 {
-    let mut eb = ErrorBuilder::new();
+    let mut eb = Error::build();
 
     for (i, x) in sequence.into_iter().enumerate() {
         eb.at_index(i, x.validate());
@@ -62,7 +90,7 @@ where
     V: Validate,
 {
     fn validate(&self) -> Result<()> {
-        let mut eb = ErrorBuilder::new();
+        let mut eb = Error::build();
 
         for (k, v) in self {
             let result = v.validate();
@@ -82,7 +110,7 @@ where
     V: Validate,
 {
     fn validate(&self) -> Result<()> {
-        let mut eb = ErrorBuilder::new();
+        let mut eb = Error::build();
 
         for (k, v) in self {
             let result = v.validate();

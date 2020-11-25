@@ -1,5 +1,5 @@
 use validatron::validators::{is_equal, is_min_length};
-use validatron::{ErrorBuilder, Result, Validate};
+use validatron::{Error, Result, Validate};
 
 #[test]
 fn basic() {
@@ -23,7 +23,7 @@ fn large_test() -> Result<()> {
 
     impl Validate for Inner {
         fn validate(&self) -> Result<()> {
-            ErrorBuilder::new()
+            Error::build()
                 .at_named("first", is_equal(&self.first, 1))
                 .at_named("second", is_min_length(&self.second, 1))
                 .build()
@@ -37,7 +37,7 @@ fn large_test() -> Result<()> {
 
     impl Validate for Outer {
         fn validate(&self) -> Result<()> {
-            ErrorBuilder::new()
+            Error::build()
                 .at_named("a", is_equal(&self.a, 1))
                 .at_named("b", self.b.validate())
                 .build()

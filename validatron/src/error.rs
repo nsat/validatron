@@ -14,11 +14,15 @@ use serde::Serialize;
 #[cfg_attr(feature = "use-serde", derive(Serialize), serde(untagged))]
 pub enum Location {
     // todo: can this be <'a>?
+    /// A keyed location, this could be a struct field or a map key
     Named(Cow<'static, str>),
+    /// An indexed location, this could be a tuple or a vector index
     Index(usize),
 }
 
-/// todo: use a none-str type as the reason type?
+// todo: use a none-str type as the reason type?
+/// A type that represents all validation issues that arise during the validation
+/// of the given data type.
 #[derive(Error, Debug, PartialEq)]
 #[cfg_attr(feature = "use-serde", derive(Serialize), serde(untagged))]
 pub enum Error {
@@ -34,6 +38,12 @@ pub enum Error {
 }
 
 impl Error {
+    /// Constructs a new unstructured [`enum@Error`] with a single message
+    ///
+    /// ```
+    /// # use validatron::Error;
+    /// let e = Error::new("the universe divided by 0");
+    /// ```
     pub fn new<S>(message: S) -> Self
     where
         S: Into<Cow<'static, str>>,
@@ -41,6 +51,15 @@ impl Error {
         Self::Unstructured(vec![message.into()])
     }
 
+    /// Merge 2 existing [`enum@Error`] types
+    ///
+    /// ```
+    /// # use validatron::Error;
+    /// let mut e1 = Error::new("the universe divided by 0");
+    /// let e2 = Error::new("an unstoppable force collided with an improvable object");
+    ///
+    /// e1.merge(e2);
+    /// ```
     pub fn merge(&mut self, other: Error) {
         // Multi + Multi -> Multi
         // Located + Located -> Located
@@ -60,16 +79,16 @@ impl Error {
             },
         };
     }
+
+    /// create a new [`ErrorBuilder`] instance
+    pub fn build() -> ErrorBuilder {
+        ErrorBuilder { errors: None }
+    }
 }
 
+/// A convenience type for building a structured error type
 pub struct ErrorBuilder {
     errors: Option<Error>,
-}
-
-impl Default for ErrorBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 fn build_structured(errs: &mut Option<Error>, loc: Location, result: Result<()>) {
@@ -97,20 +116,13 @@ fn build_structured(errs: &mut Option<Error>, loc: Location, result: Result<()>)
 }
 
 impl ErrorBuilder {
-    pub fn new() -> Self {
-        Self { errors: None }
-    }
-
-    pub fn extend(existing: Result<()>) -> Self {
-        Self {
-            errors: existing.err(),
-        }
-    }
-
+    /// does the builder contain any error messages, used to short circuit
+    /// various functions if no error has been detected.
     pub fn contains_errors(&self) -> bool {
         self.errors.is_some()
     }
 
+    /// Consume the builder and produce a [`Result`]
     pub fn build(&mut self) -> Result<()> {
         if let Some(e) = self.errors.take() {
             Err(e)
@@ -119,22 +131,14 @@ impl ErrorBuilder {
         }
     }
 
-    pub fn because(&mut self, message: impl Into<Cow<'static, str>>) -> &mut Self {
-        if let Some(e) = &mut self.errors {
-            e.merge(Error::Unstructured(vec![message.into()]))
-        } else {
-            self.errors = Some(Error::Unstructured(vec![message.into()]))
-        }
-
-        self
-    }
-
+    /// extend the existing builder with an error at the specified location
     pub fn at_location(&mut self, location: Location, result: Result<()>) -> &mut Self {
         build_structured(&mut self.errors, location, result);
 
         self
     }
 
+    /// extend an existing builder with an error at a named location
     pub fn at_named(
         &mut self,
         name: impl Into<Cow<'static, str>>,
@@ -143,6 +147,7 @@ impl ErrorBuilder {
         self.at_location(Location::Named(name.into()), result)
     }
 
+    /// extend an existing builder with an error at an indexed location
     pub fn at_index(&mut self, index: usize, result: Result<()>) -> &mut Self {
         self.at_location(Location::Index(index), result)
     }
@@ -158,15 +163,13 @@ mod tests {
         struct Bar(f64);
         impl Validate for Bar {
             fn validate(&self) -> Result<()> {
-                let mut eb = ErrorBuilder::new();
-
                 if (self.0 - 42.).abs() < 0.1 {
-                    eb.because(
+                    Err(Error::new(
                         "cannot comprehend the meaning of life the universe and everything.",
-                    );
+                    ))
+                } else {
+                    Ok(())
                 }
-
-                eb.build()
             }
         }
 
@@ -185,7 +188,7 @@ mod tests {
         }
 
         fn validate_a_vector(x: &[i64]) -> Result<()> {
-            let mut eb = ErrorBuilder::new();
+            let mut eb = Error::build();
 
             for (i, v) in x.iter().enumerate() {
                 eb.at_index(i, is_positive(v));
@@ -199,7 +202,7 @@ mod tests {
         }
 
         fn validate_a_map(x: &HashMap<String, Bar>) -> Result<()> {
-            let mut eb = ErrorBuilder::new();
+            let mut eb = Error::build();
 
             if x.contains_key("Foo") {
                 eb.at_named(
@@ -216,7 +219,7 @@ mod tests {
         }
 
         fn validate_foo(x: &Foo) -> Result<()> {
-            ErrorBuilder::new()
+            Error::build()
                 .at_named("a", crate::validators::min(&x.a, 5))
                 .at_named("b", validate_a_vector(&x.b))
                 .at_named("c", validate_a_map(&x.c))

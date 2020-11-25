@@ -278,7 +278,7 @@ fn impl_validatron(ast: &syn::DeriveInput) -> TokenStream {
 
             impl #impl_generics ::validatron::Validate for #derive_target #ty_generics #where_clause {
                 fn validate(&self) -> ::validatron::Result<()> {
-                    let mut eb = ::validatron::ErrorBuilder::new();
+                    let mut eb = ::validatron::Error::build();
 
                     #(#validators)*
 
