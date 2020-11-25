@@ -51,7 +51,7 @@ where
     let mut eb = Error::build();
 
     for (i, x) in sequence.into_iter().enumerate() {
-        eb.at_index(i, x.validate());
+        eb.try_at_index(i, x.validate());
     }
 
     eb.build()
@@ -93,11 +93,7 @@ where
         let mut eb = Error::build();
 
         for (k, v) in self {
-            let result = v.validate();
-
-            if result.is_err() {
-                eb.at_named(k.to_string(), result);
-            }
+            eb.try_at_named(k.to_string(), v.validate());
         }
 
         eb.build()
@@ -113,11 +109,7 @@ where
         let mut eb = Error::build();
 
         for (k, v) in self {
-            let result = v.validate();
-
-            if result.is_err() {
-                eb.at_named(k.to_string(), result);
-            }
+            eb.try_at_named(k.to_string(), v.validate());
         }
 
         eb.build()

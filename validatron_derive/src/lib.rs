@@ -12,7 +12,7 @@ pub fn validatron_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 
 fn build_named(name: &str, error: TokenStream) -> TokenStream {
     quote! {
-        eb.at_named(#name, #error);
+        eb.try_at_named(#name, #error);
     }
 }
 
@@ -161,11 +161,11 @@ fn build_field_validators(
                 if let Some(name) = &field.ident {
                     let name = name.to_string();
                     quote! {
-                        eb.at_named(#name, #func);
+                        eb.try_at_named(#name, #func);
                     }
                 } else {
                     quote! {
-                        eb.at_index(#i, #func);
+                        eb.try_at_index(#i, #func);
                     }
                 }
             };

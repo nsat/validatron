@@ -91,28 +91,26 @@ pub struct ErrorBuilder {
     errors: Option<Error>,
 }
 
-fn build_structured(errs: &mut Option<Error>, loc: Location, result: Result<()>) {
-    if let Err(e) = result {
-        let mut structured_errs = errs
-            .take()
-            .map(|e| match e {
-                Error::Unstructured(_) => panic!("should never happen"),
-                Error::Structured(hm) => hm,
-            })
-            .unwrap_or_else(HashMap::new);
+fn build_structured(errs: &mut Option<Error>, loc: Location, error: Error) {
+    let mut structured_errs = errs
+        .take()
+        .map(|e| match e {
+            Error::Unstructured(_) => panic!("should never happen"),
+            Error::Structured(hm) => hm,
+        })
+        .unwrap_or_else(HashMap::new);
 
-        use std::collections::hash_map::Entry;
-        match structured_errs.entry(loc) {
-            Entry::Occupied(mut entry) => {
-                entry.get_mut().merge(e);
-            }
-            Entry::Vacant(entry) => {
-                entry.insert(e);
-            }
-        };
+    use std::collections::hash_map::Entry;
+    match structured_errs.entry(loc) {
+        Entry::Occupied(mut entry) => {
+            entry.get_mut().merge(error);
+        }
+        Entry::Vacant(entry) => {
+            entry.insert(error);
+        }
+    };
 
-        *errs = Some(Error::Structured(structured_errs));
-    }
+    *errs = Some(Error::Structured(structured_errs));
 }
 
 impl ErrorBuilder {
@@ -123,6 +121,14 @@ impl ErrorBuilder {
     }
 
     /// Consume the builder and produce a [`Result`]
+    ///
+    /// ```
+    /// # use validatron::Error;
+    /// let e = Error::build()
+    ///     .at_named("a", "flat out broken")
+    ///     .build();
+    /// assert!(e.is_err());
+    /// ```
     pub fn build(&mut self) -> Result<()> {
         if let Some(e) = self.errors.take() {
             Err(e)
@@ -132,24 +138,91 @@ impl ErrorBuilder {
     }
 
     /// extend the existing builder with an error at the specified location
-    pub fn at_location(&mut self, location: Location, result: Result<()>) -> &mut Self {
-        build_structured(&mut self.errors, location, result);
+    pub fn at_location(
+        &mut self,
+        location: Location,
+        message: impl Into<Cow<'static, str>>,
+    ) -> &mut Self {
+        let e = Error::new(message);
+
+        build_structured(&mut self.errors, location, e);
 
         self
     }
 
     /// extend an existing builder with an error at a named location
+    ///
+    /// ```
+    /// # use validatron::Error;
+    /// let e = Error::build()
+    ///     .at_named("field_1", "should be empty")
+    ///     .build();
+    /// ```
     pub fn at_named(
+        &mut self,
+        name: impl Into<Cow<'static, str>>,
+        message: impl Into<Cow<'static, str>>,
+    ) -> &mut Self {
+        self.at_location(Location::Named(name.into()), message)
+    }
+
+    /// extend an existing builder with an error at an indexed location
+    ///
+    /// ```
+    /// # use validatron::Error;
+    /// let e = Error::build()
+    ///     .at_index(1, "value should be even")
+    ///     .build();
+    /// ```
+    pub fn at_index(&mut self, index: usize, message: impl Into<Cow<'static, str>>) -> &mut Self {
+        self.at_location(Location::Index(index), message)
+    }
+
+    /// extend the existing builder at the specified location if the result is an error
+    ///
+    /// ```
+    /// # use validatron::{Error, Location};
+    /// let e = Error::build()
+    ///     .try_at_location(Location::Index(1), Ok(()))
+    ///     .build();
+    /// assert!(e.is_ok());
+    /// ```
+    pub fn try_at_location(&mut self, location: Location, result: Result<()>) -> &mut Self {
+        if let Err(e) = result {
+            build_structured(&mut self.errors, location, e);
+        }
+
+        self
+    }
+
+    /// extend an existing builder with an error at a named location if the result is an error
+    ///
+    /// ```
+    /// # use validatron::{Error, Location};
+    /// let e = Error::build()
+    ///     .try_at_named("field", Ok(()))
+    ///     .build();
+    /// assert!(e.is_ok());
+    /// ```
+    pub fn try_at_named(
         &mut self,
         name: impl Into<Cow<'static, str>>,
         result: Result<()>,
     ) -> &mut Self {
-        self.at_location(Location::Named(name.into()), result)
+        self.try_at_location(Location::Named(name.into()), result)
     }
 
-    /// extend an existing builder with an error at an indexed location
-    pub fn at_index(&mut self, index: usize, result: Result<()>) -> &mut Self {
-        self.at_location(Location::Index(index), result)
+    /// extend an existing builder with an error at an indexed location if the result is an error
+    ///
+    /// ```
+    /// # use validatron::{Error, Location};
+    /// let e = Error::build()
+    ///     .try_at_index(42, Ok(()))
+    ///     .build();
+    /// assert!(e.is_ok());
+    /// ```
+    pub fn try_at_index(&mut self, index: usize, result: Result<()>) -> &mut Self {
+        self.try_at_location(Location::Index(index), result)
     }
 }
 
@@ -191,10 +264,10 @@ mod tests {
             let mut eb = Error::build();
 
             for (i, v) in x.iter().enumerate() {
-                eb.at_index(i, is_positive(v));
+                eb.try_at_index(i, is_positive(v));
 
                 if i % 2 == 1 {
-                    eb.at_index(i, Err(Error::new("must be multiple of 2")));
+                    eb.at_index(i, "must be multiple of 2");
                 }
             }
 
@@ -205,14 +278,11 @@ mod tests {
             let mut eb = Error::build();
 
             if x.contains_key("Foo") {
-                eb.at_named(
-                    "Foo",
-                    Err(Error::new("must not contain a key with this name")),
-                );
+                eb.at_named("Foo", "must not contain a key with this name");
             }
 
             for (k, v) in x {
-                eb.at_named(k.to_string(), v.validate());
+                eb.try_at_named(k.to_string(), v.validate());
             }
 
             eb.build()
@@ -220,9 +290,9 @@ mod tests {
 
         fn validate_foo(x: &Foo) -> Result<()> {
             Error::build()
-                .at_named("a", crate::validators::min(&x.a, 5))
-                .at_named("b", validate_a_vector(&x.b))
-                .at_named("c", validate_a_map(&x.c))
+                .try_at_named("a", crate::validators::min(&x.a, 5))
+                .try_at_named("b", validate_a_vector(&x.b))
+                .try_at_named("c", validate_a_map(&x.c))
                 .build()
         }
 
