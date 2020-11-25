@@ -1,4 +1,4 @@
-use crate::{Error, ErrorBuilder, Result};
+use crate::{Error, Result};
 use std::fmt::Display;
 
 /// Check that an option has a value
@@ -12,13 +12,11 @@ use std::fmt::Display;
 /// assert!(is_required::<i64>(&y).is_err());
 /// ```
 pub fn is_required<T>(value: &Option<T>) -> Result<()> {
-    let mut eb = ErrorBuilder::new();
-
     if value.is_none() {
-        eb.because("Option is required to have a value");
+        Err(Error::new("Option is required to have a value"))
+    } else {
+        Ok(())
     }
-
-    eb.build()
 }
 
 /// Check that values are equal
@@ -99,18 +97,16 @@ pub fn is_min_length<C>(iterable: C, min_length: usize) -> Result<()>
 where
     C: IntoIterator,
 {
-    let mut eb = ErrorBuilder::new();
-
     let len = sequence_length(iterable);
 
     if len < min_length {
-        eb.because(format!(
+        Err(Error::new(format!(
             "sequence does not have enough elements, it has {} but the minimum is {}",
             len, min_length
-        ));
+        )))
+    } else {
+        Ok(())
     }
-
-    eb.build()
 }
 
 /// Check that a sequence is at most a certain length
@@ -126,18 +122,16 @@ pub fn is_max_length<C>(iterable: C, max_length: usize) -> Result<()>
 where
     C: IntoIterator,
 {
-    let mut eb = ErrorBuilder::new();
-
     let len = sequence_length(iterable);
 
     if len > max_length {
-        eb.because(format!(
+        Err(Error::new(format!(
             "sequence has too many elements, it has {} but the maximum is {}",
             len, max_length
-        ));
+        )))
+    } else {
+        Ok(())
     }
-
-    eb.build()
 }
 
 #[cfg(test)]
