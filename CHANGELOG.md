@@ -45,3 +45,5 @@ updated throughout the repository.
 - Initial release of `Validatron`
 - enums are now supported in their various forms
 - added the `predicate` field attribute validator for functions that return bool
+- rename `ErrorBuilder::at_*` functions to `ErrorBuilder::try_at_*`
+- added new `ErrorBuilder::at_*` functions which will construct errors at the given location
