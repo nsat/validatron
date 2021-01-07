@@ -41,6 +41,8 @@ updated throughout the repository.
 
 ## [Unreleased]
 
+## v0.1.0
+
 ### Added
 - Initial release of `Validatron`
 - enums are now supported in their various forms
