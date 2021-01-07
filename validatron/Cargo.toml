@@ -10,11 +10,11 @@ repository = "https://github.com/nsat/validatron"
 readme = "../README.md"
 
 keywords = ["validation", "user-input"]
-categories = ["api-bindings", "science", "simulation"]
+categories = ["encoding", "parsing"]
 
 [dependencies]
 thiserror = "1.0"
-validatron_derive = { path = "../validatron_derive" }
+validatron_derive = { path = "../validatron_derive", version = "0.1.0" }
 serde = {version="1.0", optional=true, features=["derive"]}
 
 [features]
