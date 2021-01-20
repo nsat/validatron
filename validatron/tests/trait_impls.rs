@@ -1,7 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, LinkedList, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
 use validatron::{Error, Location, Result, Validate};
 
-#[derive(PartialOrd, Ord, PartialEq, Eq)]
+#[derive(PartialOrd, Ord, PartialEq, Eq, Hash)]
 struct Dummy(bool);
 
 impl Validate for Dummy {
@@ -160,6 +160,18 @@ fn btreemap() {
             assert!(x.contains_key(&Location::Named("a different place".into())));
         }
     }
+}
+
+#[test]
+fn hashset() {
+    let mut data = HashSet::new();
+    assert!(data.validate().is_ok());
+
+    data.insert(Dummy(true));
+    assert!(data.validate().is_ok());
+
+    data.insert(Dummy(false));
+    assert!(data.validate().is_err());
 }
 
 #[test]

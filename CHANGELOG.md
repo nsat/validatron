@@ -41,6 +41,11 @@ updated throughout the repository.
 
 ## [Unreleased]
 
+## v0.1.1
+
+### Added
+- `std::containers::HashSet` now implements `Validate` along with the other stdlib containers.
+
 ## v0.1.0
 
 ### Added
