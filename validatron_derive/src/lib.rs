@@ -107,12 +107,12 @@ fn build_type_validator(ast: &syn::DeriveInput) -> Vec<TokenStream> {
     for attr in ast.attrs.iter().filter(|x| x.path.is_ident("validatron")) {
         let meta = attr.parse_meta().unwrap();
 
-        if let syn::Meta::List(list) = meta {
+        use syn::{Meta, NestedMeta};
+
+        if let Meta::List(list) = meta {
             for item in list.nested.iter() {
-                if let syn::NestedMeta::Meta(meta) = item {
-                    if let syn::Meta::NameValue(mnv) = meta {
-                        type_validators.push(gen_type_check(&mnv));
-                    }
+                if let NestedMeta::Meta(Meta::NameValue(mnv)) = item {
+                    type_validators.push(gen_type_check(&mnv));
                 }
             }
         }
