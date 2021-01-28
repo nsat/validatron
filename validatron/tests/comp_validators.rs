@@ -14,6 +14,20 @@ fn field_min_validator() {
 }
 
 #[test]
+fn field_option_min_validator() {
+    #[derive(Validate)]
+    struct Foo {
+        #[validatron(option_min = 10)]
+        a: Option<u64>,
+    }
+
+    assert_eq!(Foo { a: None }.validate().is_ok(), true);
+    assert_eq!(Foo { a: Some(10) }.validate().is_ok(), true);
+    assert_eq!(Foo { a: Some(20) }.validate().is_ok(), true);
+    assert_eq!(Foo { a: Some(0) }.validate().is_ok(), false);
+}
+
+#[test]
 fn field_max_validator() {
     #[derive(Validate)]
     struct Foo {
@@ -24,6 +38,19 @@ fn field_max_validator() {
     assert_eq!(Foo { a: 10 }.validate().is_ok(), true);
     assert_eq!(Foo { a: 20 }.validate().is_ok(), false);
     assert_eq!(Foo { a: 0 }.validate().is_ok(), true);
+}
+
+#[test]
+fn field_option_max_validator() {
+    #[derive(Validate)]
+    struct Foo {
+        #[validatron(option_max = 10)]
+        a: Option<u64>,
+    }
+    assert_eq!(Foo { a: None }.validate().is_ok(), true);
+    assert_eq!(Foo { a: Some(10) }.validate().is_ok(), true);
+    assert_eq!(Foo { a: Some(20) }.validate().is_ok(), false);
+    assert_eq!(Foo { a: Some(0) }.validate().is_ok(), true);
 }
 
 #[test]
