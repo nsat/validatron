@@ -73,10 +73,9 @@ where
     L: PartialOrd<R> + Display,
     R: Display,
 {
-    if let Some(x) = value{
+    if let Some(x) = value {
         min(x, min_value)
-    }
-    else{
+    } else {
         Ok(())
     }
 }
@@ -115,10 +114,9 @@ where
     L: PartialOrd<R> + Display,
     R: Display,
 {
-    if let Some(x) = value{
+    if let Some(x) = value {
         max(x, max_value)
-    }
-    else{
+    } else {
         Ok(())
     }
 }
