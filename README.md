@@ -29,21 +29,21 @@ use validatron::Validate;
 struct MyStruct {
     #[validatron(min = 42)]
     a: i64,
-    #[validatron(equal = "hello world!")]
-    b: String,
+    #[validatron(max_len = 5)]
+    b: Vec<u32>,
 }
 
 fn main() {
     let good = MyStruct {
         a: 666,
-        b: "hello world!".into(),
+        b: vec![],
     };
 
     assert!(good.validate().is_ok());
 
     let bad = MyStruct {
         a: 1,
-        b: "so long and thanks for all the fish".into(),
+        b: vec![42; 25],
     };
 
     let result = bad.validate();

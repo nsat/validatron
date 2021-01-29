@@ -2,7 +2,7 @@
 
 extern crate proc_macro;
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
 
 #[proc_macro_derive(Validate, attributes(validatron))]
 pub fn validatron_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -60,16 +60,25 @@ fn get_field_validator(meta: &syn::Meta, target: &TokenStream) -> TokenStream {
         syn::Meta::NameValue(mnv) => {
             let name = mnv.path.get_ident().unwrap().to_string();
 
-            let lit = &mnv.lit;
+            // If a user provides a string literal we shall treat it as an expression
+            // this makes our comparison operators much more flexible.
+            let lit = if let syn::Lit::Str(lit) = &mnv.lit {
+                let x = syn::parse_str::<syn::Expr>(&lit.value()).unwrap();
+
+                x.to_token_stream()
+            } else {
+                mnv.lit.to_token_stream()
+            };
 
             match name.as_str() {
                 "function" => {
-                    let custom_func = lit_to_path(&lit);
+                    let custom_func = lit_to_path(&mnv.lit);
                     quote! {
                         #custom_func(#target)
                     }
                 }
                 "predicate" => {
+                    let lit = &mnv.lit;
                     let custom_func = lit_to_path(&lit);
                     let err_msg = format!("Predicate {} failed", quote!(#lit));
                     quote! {

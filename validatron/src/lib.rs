@@ -7,13 +7,13 @@
 //! struct MyStruct {
 //!     #[validatron(min = 42)]
 //!     a: i64,
-//!     #[validatron(equal = "hello world!")]
-//!     b: String,
+//!     #[validatron(max_len = 5)]
+//!     b: Vec<u32>,
 //! }
 //!
 //! let x = MyStruct {
 //!     a: 36,
-//!     b: "hello world!".into()
+//!     b: vec![]
 //! };
 //!
 //! x.validate().is_err();
