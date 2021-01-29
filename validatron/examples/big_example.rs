@@ -27,17 +27,22 @@ fn main() {
         #[validatron(min = 2., min = 3.)]
         #[validatron(max = 0., max = 2., equal = 3., equal = 1.)]
         out_a: f64,
+
         #[validatron]
         out_b: NestedValidateStruct,
+
         #[validatron(required)]
         out_c: Option<bool>,
+
         #[validatron]
         out_d: HashMap<&'static str, NestedValidateStruct>,
+
         #[validatron(function = "custom_str_compare")]
-        #[validatron(equal = "fluffy")]
         out_e: &'static str,
+
         #[validatron(function = "custom_str_compare")]
         out_e2: String,
+
         #[validatron]
         out_f: Vec<NestedValidateStruct>,
     }

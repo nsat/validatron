@@ -45,14 +45,14 @@ fn enum_new_type() {
     enum MyEnum {
         WithAttr(#[validatron] Dummy),
 
-        WithCustomAttr(#[validatron(equal = "hello")] String),
+        WithCustomAttr(#[validatron(equal = "32")] i64),
     }
 
     assert!(MyEnum::WithAttr(Dummy(true)).validate().is_ok());
     assert!(MyEnum::WithAttr(Dummy(false)).validate().is_err());
 
-    assert!(MyEnum::WithCustomAttr("hello".into()).validate().is_ok());
-    assert!(MyEnum::WithCustomAttr("".into()).validate().is_err());
+    assert!(MyEnum::WithCustomAttr(32).validate().is_ok());
+    assert!(MyEnum::WithCustomAttr(1).validate().is_err());
 }
 
 #[test]

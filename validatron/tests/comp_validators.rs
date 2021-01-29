@@ -31,22 +31,27 @@ fn field_equal_validator() {
     #[derive(Validate)]
     struct Foo {
         #[validatron(equal = 10)]
+        #[validatron(equal = "10")]
+        #[validatron(equal = "9 + 1")]
         a: u64,
+
+        #[validatron(equal = "\"hello world!\"")]
+        b: String,
     }
 
-    assert_eq!(Foo { a: 10 }.validate().is_ok(), true);
-    assert_eq!(Foo { a: 20 }.validate().is_ok(), false);
-
-    #[derive(Validate)]
-    struct Bar {
-        #[validatron(equal = "hello world")]
-        a: &'static str,
-    }
-
-    assert_eq!(Bar { a: "hello world" }.validate().is_ok(), true);
     assert_eq!(
-        Bar {
-            a: "goodbye cruel world"
+        Foo {
+            a: 10,
+            b: "hello world!".into()
+        }
+        .validate()
+        .is_ok(),
+        true
+    );
+    assert_eq!(
+        Foo {
+            a: 20,
+            b: "".into()
         }
         .validate()
         .is_ok(),
