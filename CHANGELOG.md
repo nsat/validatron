@@ -42,7 +42,7 @@ updated throughout the repository.
 ## [Unreleased]
 
 ### Changed
-- Using a literal string in macro annotations will now be interpreted as an expression. This makes
+- *Breaking Change* Using a literal string in macro annotations will now be interpreted as an expression. This makes
   it possible to inject values by running functions and using types such as `Some(42)` with
   comparison operators. To inject string literals into macro attributes you will now now need to
   escape the literal quotes like so: `#[validatron(equal = "\"Foo\"")]`
