@@ -58,6 +58,28 @@ where
     }
 }
 
+/// Check that an optional value is either none or greater than a value
+///
+/// ```
+/// # use validatron::validators::option_min;
+/// let x = None::<u64>;
+/// assert!(option_min(&x, 1).is_ok());
+/// assert!(option_min(&Some(1.0), 2.0).is_err());
+/// assert!(option_min(&Some(3), 2).is_ok());
+/// ```
+///
+pub fn option_min<L, R>(value: &Option<L>, min_value: R) -> Result<()>
+where
+    L: PartialOrd<R> + Display,
+    R: Display,
+{
+    if let Some(x) = value {
+        min(x, min_value)
+    } else {
+        Ok(())
+    }
+}
+
 /// Check that a value is less than a max
 ///
 /// ```
@@ -72,6 +94,28 @@ where
 {
     if *value > max {
         Err(Error::new(format!("'{}' is greater than '{}'", value, max)))
+    } else {
+        Ok(())
+    }
+}
+
+/// Check that an optional value is either none or less than a value
+///
+/// ```
+/// # use validatron::validators::option_max;
+/// let x = None::<u64>;
+/// assert!(option_max(&x, 1).is_ok());
+/// assert!(option_max(&Some(1.0), 2.0).is_ok());
+/// assert!(option_max(&Some(3), 2).is_err());
+/// ```
+///
+pub fn option_max<L, R>(value: &Option<L>, max_value: R) -> Result<()>
+where
+    L: PartialOrd<R> + Display,
+    R: Display,
+{
+    if let Some(x) = value {
+        max(x, max_value)
     } else {
         Ok(())
     }

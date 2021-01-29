@@ -83,8 +83,14 @@ fn get_field_validator(meta: &syn::Meta, target: &TokenStream) -> TokenStream {
                 "min" => quote! {
                     ::validatron::validators::min(#target, #lit)
                 },
+                "option_min" => quote! {
+                    ::validatron::validators::option_min(#target, #lit)
+                },
                 "max" => quote! {
                     ::validatron::validators::max(#target, #lit)
+                },
+                "option_max" => quote! {
+                    ::validatron::validators::option_max(#target, #lit)
                 },
                 "equal" => quote! {
                     ::validatron::validators::is_equal(#target, #lit)
