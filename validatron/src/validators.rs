@@ -35,7 +35,7 @@ where
     if *value == other {
         Ok(())
     } else {
-        Err(Error::new(format!("{} != {}", value, other)))
+        Err(Error::new(format!("'{}' must equal '{}'", value, other)))
     }
 }
 
@@ -52,7 +52,7 @@ where
     R: Display,
 {
     if *value < min {
-        Err(Error::new(format!("{} is less than {}", value, min)))
+        Err(Error::new(format!("'{}' must be greater than or equal to '{}'", value, min)))
     } else {
         Ok(())
     }
@@ -93,7 +93,7 @@ where
     R: Display,
 {
     if *value > max {
-        Err(Error::new(format!("'{}' is greater than '{}'", value, max)))
+        Err(Error::new(format!("'{}' must be less than or equal to '{}'", value, max)))
     } else {
         Ok(())
     }
