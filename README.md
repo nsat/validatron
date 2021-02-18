@@ -1,8 +1,8 @@
 # Validatron [![Build Status]][actions] [![Docs]][docs.rs] [![Latest Version]][crates.io]
 
 
-[Build Status]: https://img.shields.io/github/workflow/status/serde-rs/serde/CI/master
-[actions]: https://github.com/serde-rs/serde/actions?query=branch%3Amaster
+[Build Status]: https://img.shields.io/github/workflow/status/nsat/validatron/Rust/master
+[actions]: https://github.com/nsat/validatron/actions?query=branch%3Amaster
 [Docs]: https://docs.rs/validatron/badge.svg
 [docs.rs]: https://docs.rs/validatron/
 [Latest Version]: https://img.shields.io/crates/v/validatron.svg
