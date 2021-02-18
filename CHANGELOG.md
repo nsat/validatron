@@ -41,6 +41,11 @@ updated throughout the repository.
 
 ## [Unreleased]
 
+## v0.2.1
+
+### Changed
+- Better error messages for inbuilt validators
+
 ## v0.2.0
 
 ### Added
