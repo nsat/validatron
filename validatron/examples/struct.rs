@@ -7,7 +7,7 @@ fn main() {
         #[validatron(min = 5)]
         a: u64,
         b: u64,
-    };
+    }
 
     fn custom_compare(value: &Comp) -> Result<()> {
         if value.a < value.b {

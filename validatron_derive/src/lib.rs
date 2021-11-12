@@ -156,13 +156,13 @@ fn build_field_validators(
                 .as_ref()
                 .map(|name| {
                     quote! {
-                        #target_prefix#name
+                        #target_prefix #name
                     }
                 })
                 .unwrap_or_else(|| {
                     if target_prefix.is_some() {
                         let i = syn::Index::from(i);
-                        quote! {#target_prefix#i}
+                        quote! {#target_prefix #i}
                     } else {
                         let arg_name = syn::Ident::new(
                             &format!("_field{}", i),
