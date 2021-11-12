@@ -3,7 +3,7 @@ use validatron::{Error, Result, Validate};
 
 #[test]
 fn basic() {
-    struct Foo {};
+    struct Foo {}
 
     impl Validate for Foo {
         fn validate(&self) -> Result<()> {
