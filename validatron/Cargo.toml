@@ -23,7 +23,7 @@ default = ["use-serde"]
 use-serde = ["serde"]
 
 [dev-dependencies]
-serde_yaml = "0.8"
+serde_yaml = "0.9"
 
 [[example]]
 name = "enum"
