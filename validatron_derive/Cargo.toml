@@ -1,6 +1,6 @@
 [package]
 name = "validatron_derive"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Frankie Foston <frankie.foston@spire.com>"]
 edition = "2021"
 license = "MIT"
