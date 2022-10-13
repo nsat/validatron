@@ -41,6 +41,11 @@ updated throughout the repository.
 
 ## [Unreleased]
 
+## v0.3.0
+
+### Added
+- Added optional support for `IndexMap` and `IndexSet` with the `use-indexmap` feature.
+
 ## v0.2.1
 
 ### Changed
