@@ -143,6 +143,33 @@ where
     }
 }
 
+#[cfg(feature = "use-indexmap")]
+impl<K, V> Validate for indexmap::IndexMap<K, V>
+where
+    K: std::fmt::Display,
+    V: Validate,
+{
+    fn validate(&self) -> Result<()> {
+        let mut eb = Error::build();
+
+        for (k, v) in self {
+            eb.try_at_named(k.to_string(), v.validate());
+        }
+
+        eb.build()
+    }
+}
+
+#[cfg(feature = "use-indexmap")]
+impl<T, S> Validate for indexmap::IndexSet<T, S>
+where
+    T: Validate,
+{
+    fn validate(&self) -> Result<()> {
+        validate_seq(self)
+    }
+}
+
 impl<T> Validate for Option<T>
 where
     T: Validate,
