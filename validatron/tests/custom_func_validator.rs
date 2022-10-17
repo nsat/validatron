@@ -20,6 +20,59 @@ fn test_custom_field_validator() {
     assert!(Foo { a: 0 }.validate().is_err());
 }
 
+#[derive(Validate)]
+#[validatron(function = "my::nested::validators::check_foo")]
+pub(crate) struct Foo {
+    bar: String,
+    baz: String,
+}
+
+pub(crate) mod my {
+    pub(crate) mod nested {
+        pub(crate) mod validators {
+            use crate::Foo;
+            use validatron::Error;
+
+            pub(crate) fn check_foo(x: &Foo) -> Result<(), Error> {
+                if x.bar == x.baz && &x.baz == "foo" {
+                    Ok(())
+                } else {
+                    Err(Error::new("not foo"))
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn custom_fn_module() {
+    assert!(Foo {
+        bar: "foo".to_string(),
+        baz: "foo".to_string()
+    }
+    .validate()
+    .is_ok());
+
+    let e = Foo {
+        bar: "baz".to_string(),
+        baz: "foo".to_string(),
+    }
+    .validate()
+    .unwrap_err();
+
+    assert_eq!(
+        e,
+        Error::Structured(
+            vec![(
+                Location::Named("check_foo".into()),
+                Error::Unstructured(vec!["not foo".into()])
+            )]
+            .into_iter()
+            .collect()
+        )
+    )
+}
+
 #[test]
 fn uses_existing_function() {
     #[derive(Validate)]
@@ -36,7 +89,7 @@ fn uses_existing_function() {
         Error::Structured(
             vec![(
                 Location::Index(0),
-                Error::Unstructured(vec!["Predicate \"Option::is_some\" failed".into()])
+                Error::Unstructured(vec!["Predicate \"is_some\" failed".into()])
             )]
             .into_iter()
             .collect()
