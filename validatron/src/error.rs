@@ -64,20 +64,35 @@ impl Error {
         // Multi + Multi -> Multi
         // Located + Located -> Located
 
-        // todo: simplify once https://github.com/rust-lang/rust/issues/68354
-        // is stabilised
-        match self {
-            Error::Unstructured(x) => match other {
-                Error::Unstructured(y) => x.extend(y.into_iter()),
-                _ => panic!("can only merge duplicate variants"),
-            },
-            Error::Structured(x) => match other {
-                Error::Structured(y) => {
-                    x.extend(y.into_iter());
+        match (self, other) {
+            (Error::Unstructured(xs), Error::Unstructured(ys)) => {
+                xs.extend(ys);
+            }
+            (x @ Error::Unstructured(_), mut y @ Error::Structured(_)) => {
+                std::mem::swap(x, &mut y);
+
+                x.merge(y)
+            }
+            (x @ Error::Structured(_), y @ Error::Unstructured(_)) => {
+                let mut map = HashMap::new();
+                map.insert(Location::Named(Cow::from("errors")), y);
+
+                x.merge(Error::Structured(map));
+            }
+            (Error::Structured(x), Error::Structured(ys)) => {
+                use std::collections::hash_map::Entry;
+                for (k, v) in ys {
+                    match x.entry(k) {
+                        Entry::Occupied(mut entry) => {
+                            entry.get_mut().merge(v);
+                        }
+                        Entry::Vacant(entry) => {
+                            entry.insert(v);
+                        }
+                    }
                 }
-                _ => panic!("can only merge duplicate variants"),
-            },
-        };
+            }
+        }
     }
 
     /// create a new [`ErrorBuilder`] instance
