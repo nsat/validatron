@@ -30,7 +30,7 @@ fn gen_type_check(mvn: &syn::MetaNameValue) -> TokenStream {
 
     let func = match name.as_str() {
         "function" => {
-            let custom_func = lit_to_path(&lit);
+            let custom_func = lit_to_path(lit);
             build_named(
                 &quote! {#lit}.to_string(),
                 quote! {
@@ -79,7 +79,7 @@ fn get_field_validator(meta: &syn::Meta, target: &TokenStream) -> TokenStream {
                 }
                 "predicate" => {
                     let lit = &mnv.lit;
-                    let custom_func = lit_to_path(&lit);
+                    let custom_func = lit_to_path(lit);
                     let err_msg = format!("Predicate {} failed", quote!(#lit));
                     quote! {
                         if #custom_func(#target) {
@@ -127,7 +127,7 @@ fn build_type_validator(ast: &syn::DeriveInput) -> Vec<TokenStream> {
         if let Meta::List(list) = meta {
             for item in list.nested.iter() {
                 if let NestedMeta::Meta(Meta::NameValue(mnv)) = item {
-                    type_validators.push(gen_type_check(&mnv));
+                    type_validators.push(gen_type_check(mnv));
                 }
             }
         }
@@ -196,9 +196,9 @@ fn build_field_validators(
                     for item in list.nested.iter() {
                         if let syn::NestedMeta::Meta(meta) = item {
                             let validator = if borrow_fields {
-                                get_field_validator(&meta, &quote!(&#target))
+                                get_field_validator(meta, &quote!(&#target))
                             } else {
-                                get_field_validator(&meta, &target)
+                                get_field_validator(meta, &target)
                             };
 
                             custom_field_validators.push(push(validator))
@@ -276,11 +276,11 @@ fn build_enum_variant_validator(de: &syn::DataEnum) -> TokenStream {
 }
 
 fn impl_validatron(ast: &syn::DeriveInput) -> TokenStream {
-    let type_validators = build_type_validator(&ast);
+    let type_validators = build_type_validator(ast);
 
     let validators = match &ast.data {
         syn::Data::Struct(ds) => build_field_validators(&ds.fields, Some(quote!(self.)), true),
-        syn::Data::Enum(de) => vec![build_enum_variant_validator(&de)],
+        syn::Data::Enum(de) => vec![build_enum_variant_validator(de)],
         syn::Data::Union(_) => panic!("Union types are not supported"),
     };
 
