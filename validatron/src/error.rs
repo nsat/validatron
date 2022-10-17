@@ -1,5 +1,4 @@
-use std::borrow::Cow;
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::BTreeMap};
 use thiserror::Error;
 
 use crate::Result;
@@ -10,7 +9,7 @@ use serde::Serialize;
 /// The location within a data structure in which a validation error could
 /// occur. Similar to serde we only support json style data structures with
 /// either numerically indexed or keyed locations.
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd)]
 #[cfg_attr(feature = "use-serde", derive(Serialize), serde(untagged))]
 pub enum Location {
     // todo: can this be <'a>?
@@ -34,7 +33,7 @@ pub enum Error {
     ///
     /// a vector or a nested map can attribute errors to the correct locations
     #[error("{0:#?}")]
-    Structured(HashMap<Location, Error>),
+    Structured(BTreeMap<Location, Error>),
 }
 
 impl Error {
@@ -74,13 +73,13 @@ impl Error {
                 x.merge(y)
             }
             (x @ Error::Structured(_), y @ Error::Unstructured(_)) => {
-                let mut map = HashMap::new();
+                let mut map = BTreeMap::new();
                 map.insert(Location::Named(Cow::from("errors")), y);
 
                 x.merge(Error::Structured(map));
             }
             (Error::Structured(x), Error::Structured(ys)) => {
-                use std::collections::hash_map::Entry;
+                use std::collections::btree_map::Entry;
                 for (k, v) in ys {
                     match x.entry(k) {
                         Entry::Occupied(mut entry) => {
@@ -113,9 +112,9 @@ fn build_structured(errs: &mut Option<Error>, loc: Location, error: Error) {
             Error::Unstructured(_) => panic!("should never happen"),
             Error::Structured(hm) => hm,
         })
-        .unwrap_or_else(HashMap::new);
+        .unwrap_or_else(BTreeMap::new);
 
-    use std::collections::hash_map::Entry;
+    use std::collections::btree_map::Entry;
     match structured_errs.entry(loc) {
         Entry::Occupied(mut entry) => {
             entry.get_mut().merge(error);
@@ -245,6 +244,7 @@ impl ErrorBuilder {
 mod tests {
     use super::*;
     use crate::Validate;
+    use std::collections::HashMap;
 
     #[test]
     fn builder_works() {
