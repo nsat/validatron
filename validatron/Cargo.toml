@@ -14,7 +14,7 @@ categories = ["encoding", "parsing"]
 
 [dependencies]
 thiserror = "1.0"
-validatron_derive = { path = "../validatron_derive", version = "0.3.0" }
+validatron_derive = { path = "../validatron_derive", version = "0.4.0" }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 indexmap = { version = "1", optional = true }
 
