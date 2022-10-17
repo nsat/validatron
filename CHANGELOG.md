@@ -41,6 +41,12 @@ updated throughout the repository.
 
 ## [Unreleased]
 
+## v0.4.0
+
+### Changed
+- Merging `Error::Structured` with `Error::Structured` is now recursive.
+- Merging `Error::Structured` with `Error::Unstructured` now creates an  `Error::Structured` with an `errors` key for unstructured errors.
+
 ## v0.3.0
 
 ### Added

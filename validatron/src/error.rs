@@ -332,7 +332,7 @@ mod tests {
     }
 
     #[test]
-    fn test_error_merge() {
+    fn test_error_merge_2x_unstructured() {
         let mut a = Error::new("a");
         let b = Error::new("b");
 
@@ -344,17 +344,78 @@ mod tests {
             }
             Error::Structured(_) => panic!("should not happen"),
         }
+    }
 
-        let mut a = Error::new("a");
-        let b = Error::new("b");
+    fn test_unstruct_plus_struc_merge(e: &Error) {
+        match e {
+            Error::Unstructured(_) => panic!("should not happen"),
+            Error::Structured(x) => {
+                assert_eq!(
+                    x[&Location::Named("dummy".into())],
+                    Error::new("something happened")
+                );
+                assert_eq!(x[&Location::Named("errors".into())], Error::new("b"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_error_merge_unstructured_plus_structured() {
+        let mut struc = Error::Structured(
+            [(
+                Location::Named("dummy".into()),
+                Error::new("something happened"),
+            )]
+            .into(),
+        );
+        let unstruc = Error::new("b");
+
+        struc.merge(unstruc);
+
+        test_unstruct_plus_struc_merge(&struc);
+    }
+
+    #[test]
+    fn test_error_merge_structured_plus_unstructured() {
+        let struc = Error::Structured(
+            [(
+                Location::Named("dummy".into()),
+                Error::new("something happened"),
+            )]
+            .into(),
+        );
+        let mut unstruc = Error::new("b");
+
+        unstruc.merge(struc);
+
+        test_unstruct_plus_struc_merge(&unstruc);
+    }
+
+    #[test]
+    fn test_error_merge_structured_recurse() {
+        let mut a = Error::Structured([(Location::Named("dummy".into()), Error::new("a"))].into());
+        let b = Error::Structured(
+            [
+                (Location::Named("dummy".into()), Error::new("b")),
+                (Location::Named("also_dummy".into()), Error::new("c")),
+            ]
+            .into(),
+        );
 
         a.merge(b);
 
         match a {
-            Error::Unstructured(x) => {
-                assert_eq!(x, vec!["a", "b"]);
+            Error::Unstructured(_) => panic!("should not happen"),
+            Error::Structured(x) => {
+                assert_eq!(
+                    x[&Location::Named("dummy".into())],
+                    Error::Unstructured(vec!["a".into(), "b".into()])
+                );
+                assert_eq!(
+                    x[&Location::Named("also_dummy".into())],
+                    Error::Unstructured(vec!["c".into()])
+                );
             }
-            Error::Structured(_) => panic!("should not happen"),
         }
     }
 }
