@@ -31,8 +31,15 @@ fn gen_type_check(mvn: &syn::MetaNameValue) -> TokenStream {
     let func = match name.as_str() {
         "function" => {
             let custom_func = lit_to_path(lit);
+
+            let seg = custom_func
+                .segments
+                .last()
+                .map(|x| x.ident.to_string())
+                .unwrap_or_else(|| quote!(#lit).to_string());
+
             build_named(
-                &quote! {#lit}.to_string(),
+                &seg,
                 quote! {
                     #custom_func(&self)
                 },
@@ -79,8 +86,16 @@ fn get_field_validator(meta: &syn::Meta, target: &TokenStream) -> TokenStream {
                 }
                 "predicate" => {
                     let lit = &mnv.lit;
+
                     let custom_func = lit_to_path(lit);
-                    let err_msg = format!("Predicate {} failed", quote!(#lit));
+
+                    let seg = custom_func
+                        .segments
+                        .last()
+                        .map(|x| x.ident.to_string().to_token_stream())
+                        .unwrap_or_else(|| lit.to_token_stream());
+
+                    let err_msg = format!("Predicate {} failed", seg);
                     quote! {
                         if #custom_func(#target) {
                             Ok(())
