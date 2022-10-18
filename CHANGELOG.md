@@ -41,11 +41,17 @@ updated throughout the repository.
 
 ## [Unreleased]
 
+## v0.5.0
+- `Error::Structured` is now backed by a `BTreeMap` for consistent ordering.
+- Custom Function and Predicate validators no longer report the full module path in errors.
+  `my::nested::validators::check_foo` will now be keyed as `check_foo` in the resulting error report.
+
 ## v0.4.0
 
 ### Changed
 - Merging `Error::Structured` with `Error::Structured` is now recursive.
-- Merging `Error::Structured` with `Error::Unstructured` now creates an  `Error::Structured` with an `errors` key for unstructured errors.
+- Merging `Error::Structured` with `Error::Unstructured` now creates an  `Error::Structured` with
+  an `errors` key for unstructured errors.
 
 ## v0.3.0
 
