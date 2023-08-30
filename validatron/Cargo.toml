@@ -13,15 +13,17 @@ keywords = ["validation", "user-input"]
 categories = ["encoding", "parsing"]
 
 [dependencies]
+indexmap1 = {package = "indexmap", version = "1", optional = true}
+indexmap2 = {package = "indexmap", version = "2", optional = true}
+serde = {version = "1.0", optional = true, features = ["derive"]}
 thiserror = "1.0"
-validatron_derive = { path = "../validatron_derive", version = "0.5.0" }
-serde = { version = "1.0", optional = true, features = ["derive"] }
-indexmap = { version = "1", optional = true }
+validatron_derive = {path = "../validatron_derive", version = "0.5.0"}
 
 [features]
 default = ["use-serde"]
 
-use-indexmap = ["indexmap"]
+use-indexmap = ["dep:indexmap1"]
+use-indexmap2 = ["dep:indexmap2"]
 use-serde = ["serde"]
 
 [dev-dependencies]

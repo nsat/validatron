@@ -144,7 +144,24 @@ where
 }
 
 #[cfg(feature = "use-indexmap")]
-impl<K, V> Validate for indexmap::IndexMap<K, V>
+impl<K, V> Validate for indexmap1::IndexMap<K, V>
+where
+    K: std::fmt::Display,
+    V: Validate,
+{
+    fn validate(&self) -> Result<()> {
+        let mut eb = Error::build();
+
+        for (k, v) in self {
+            eb.try_at_named(k.to_string(), v.validate());
+        }
+
+        eb.build()
+    }
+}
+
+#[cfg(feature = "use-indexmap2")]
+impl<K, V> Validate for indexmap2::IndexMap<K, V>
 where
     K: std::fmt::Display,
     V: Validate,
@@ -161,7 +178,17 @@ where
 }
 
 #[cfg(feature = "use-indexmap")]
-impl<T, S> Validate for indexmap::IndexSet<T, S>
+impl<T, S> Validate for indexmap1::IndexSet<T, S>
+where
+    T: Validate,
+{
+    fn validate(&self) -> Result<()> {
+        validate_seq(self)
+    }
+}
+
+#[cfg(feature = "use-indexmap2")]
+impl<T, S> Validate for indexmap2::IndexSet<T, S>
 where
     T: Validate,
 {
